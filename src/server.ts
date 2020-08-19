@@ -1,13 +1,12 @@
-import express from 'express';
+import ws from 'ws';
+import { Room } from './room';
+import { User } from './user';
 
-const app = express();
-const port = 3000;
-app.get('/', (req, res) => {
-  res.send('Test');
-});
-app.listen(port, (err) => {
-  if (err) {
-    return console.error(err);
-  }
-  return console.log(`server is listening on ${port}`);
+const wss = new ws.Server({ port: 9000 });
+let rooms: Room[] = [];
+
+wss.on('connection', (ws, req) => {
+  ws.on('message', (message) => {
+    console.log('received: %s', message);
+  });
 });
