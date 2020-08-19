@@ -9,6 +9,10 @@ export class Room {
     this.users.push(user);
   }
 
+  getUsers() {
+    return this.users;
+  }
+
   addUser(user: User) {
     this.users.push(user);
   }
