@@ -2,22 +2,23 @@ import { User } from './user';
 
 export class Room {
   private name: string;
+  private admin: User;
   private users: User[] = [];
 
-  constructor(name: string, user: User) {
+  constructor(name: string, admin: User) {
     this.name = name;
-    this.users.push(user);
+    this.admin = admin;
   }
 
-  getUsers() {
-    return this.users;
+  getAdminAndUsers() {
+    return [this.admin, ...this.users];
   }
 
   addUser(user: User) {
     this.users.push(user);
   }
 
-  removeUser(user: User) {
+  kickUser(user: User) {
     const index = this.users.indexOf(user);
     if (index > -1) {
       this.users.splice(index, 1);
