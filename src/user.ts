@@ -1,9 +1,10 @@
 import webSocket from 'ws';
-import { RoomsJSON } from './messages';
+import { Room } from './room';
 
 export class User {
   private name: string;
   private ws: webSocket;
+  private room?: Room;
 
   constructor(name: string, ws: webSocket) {
     this.name = name;
@@ -17,6 +18,18 @@ export class User {
 
   getName() {
     return this.name;
+  }
+
+  addToRoom(room: Room) {
+    this.room = room;
+  }
+
+  exitRoom() {
+    this.room = undefined;
+  }
+
+  getRoom(): Room | undefined {
+    return this.room;
   }
 
   sendMessage(message: string) {

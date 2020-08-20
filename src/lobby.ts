@@ -2,7 +2,12 @@ import { Room } from './room';
 import { User } from './user';
 import webSocket from 'ws';
 import { IncomingMessage } from 'http';
-import { RoomsJSON, ErrorJSON } from './messages';
+import {
+  RoomsJSON,
+  ErrorJSON,
+  RoomiesJSON,
+  RoomiesContentJSON
+} from './messages';
 
 export class Lobby {
   private rooms: Room[] = [];
@@ -18,7 +23,8 @@ export class Lobby {
   }
 
   removeUser(ws: webSocket) {
-    const user = this.findUserByWS(ws);
+    const user = this.findUser(ws);
+    //TODO check if user is in a room
     console.log(`Removing user ${user.getName()}`);
     const index = this.users.indexOf(user);
     if (index > -1) {
@@ -27,37 +33,129 @@ export class Lobby {
   }
 
   createRoom(ws: webSocket, roomName: string) {
-    if (this.roomExists(roomName)) {
-      const error = {} as ErrorJSON;
-      error.command = 'connect_room';
-      error.message = 'A room with this name already exists';
-      this.findUserByWS(ws).sendMessage(JSON.stringify(error));
+    const user = this.findUser(ws);
+    if (roomName === '') {
+      user.sendMessage(
+        JSON.stringify(
+          this.generateError('create_room', "The room name can't be empty")
+        )
+      );
+      return;
+    } else if (this.roomExists(roomName)) {
+      user.sendMessage(
+        JSON.stringify(
+          this.generateError(
+            'create_room',
+            'A room with this name already exists'
+          )
+        )
+      );
+      return;
+    } else if (user.getRoom() !== undefined) {
+      user.sendMessage(
+        JSON.stringify(
+          this.generateError('create_room', 'You are already in a room')
+        )
+      );
       return;
     }
-    const room = new Room(roomName, this.findUserByWS(ws));
+    const room = new Room(roomName, user);
     this.rooms.push(room);
+    user.addToRoom(room);
+    user.sendMessage(JSON.stringify(this.getRoomiesJSON(room)));
+    this.sendRoomsToFreeUsers();
+  }
+
+  connectToRoom(ws: webSocket, roomName: string) {
+    const room = this.rooms.find((r) => r.getName() === roomName);
+    const user = this.findUser(ws);
+    if (room === undefined) {
+      user.sendMessage(
+        JSON.stringify(
+          this.generateError(
+            'connect_room',
+            "A room with this name doesn't exist"
+          )
+        )
+      );
+      return;
+    } else if (user.getRoom() !== undefined) {
+      user.sendMessage(
+        JSON.stringify(
+          this.generateError('connect_room', 'You are already in a room')
+        )
+      );
+      return;
+    }
+
+    room.addUser(user);
+    user.addToRoom(room);
+    user.sendMessage(JSON.stringify(this.getRoomiesJSON(room)));
+  }
+
+  disconnectFromRoom(ws: webSocket) {
+    const user = this.findUser(ws);
+    const room = user.getRoom();
+    room?.removeAdminOrUser(user);
+    user.exitRoom();
+    user.sendMessage(JSON.stringify(this.getRoomsJSON()));
+  }
+
+  private sendRoomsToFreeUsers() {
+    this.findFreeUsers().forEach((u) =>
+      u.sendMessage(JSON.stringify(this.getRoomsJSON()))
+    );
   }
 
   private getRandomInt(max: number) {
     return Math.floor(Math.random() * Math.floor(max));
   }
 
-  private findUserByWS(ws: webSocket): User {
+  private findUser(ws: webSocket): User {
     return this.users.find((u) => {
       return u.getWs() === ws;
     })!;
+  }
+
+  private findFreeUsers(): User[] {
+    return this.users.filter((u) => u.getRoom() === undefined);
   }
 
   private roomExists(roomName: string): boolean {
     return this.rooms.find((r) => r.getName() === roomName) !== undefined;
   }
 
-  private getRoomsJSON() {
-    let roomsJson = {} as RoomsJSON;
+  private getRoomsJSON(): RoomsJSON {
+    const roomsJson = {} as RoomsJSON;
     roomsJson.rooms = [];
-    this.rooms.forEach((r) => {
-      roomsJson.rooms.push(r.getName());
-    });
+    this.rooms.forEach((r) => roomsJson.rooms.push(r.getName()));
     return roomsJson;
+  }
+
+  private getRoomiesJSON(room: Room): RoomiesJSON {
+    const roomiesJson = {} as RoomiesJSON;
+    const roomiesContentJson = {} as RoomiesContentJSON;
+    roomiesJson.roomies = roomiesContentJson;
+    roomiesContentJson.admins = [];
+    roomiesContentJson.users = [];
+    room
+      .getAdmins()
+      .forEach((a) => roomiesContentJson.admins.push(a.getName()));
+    room.getUsers().forEach((u) => roomiesContentJson.users.push(u.getName()));
+    return roomiesJson;
+  }
+
+  // private removeFromArray<T>(obj: T, array: T[]) {
+  //   const index = array.indexOf(obj);
+  //   if (index > -1) {
+  //     array.splice(index, 1);
+  //   }
+  // }
+
+  private generateError(command: string, message: string): ErrorJSON {
+    const error = {} as ErrorJSON;
+    error.command = command;
+    error.message = message;
+    return error;
   }
 }

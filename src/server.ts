@@ -1,7 +1,5 @@
 import webSocket, { Data } from 'ws';
-import { Room } from './room';
 import { Lobby } from './lobby';
-import { ErrorJSON } from './messages';
 
 const wss = new webSocket.Server({ port: 8080 });
 const lobby = new Lobby();
@@ -22,25 +20,17 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-function sendRoomsToAllUsers() {}
-
 function processMessage(ws: webSocket, msg: Data) {
   if (typeof msg === 'string') {
     const msgJSON = JSON.parse(msg);
-    if (msgJSON.connect_room) {
+    if (msgJSON.create_room !== undefined) {
+      lobby.createRoom(ws, msgJSON.create_room);
+    } else if (msgJSON.connect_room !== undefined) {
       if (msgJSON.connect_room !== '') {
-        lobby.createRoom(ws, msgJSON.connect_room);
+        lobby.connectToRoom(ws, msgJSON.connect_room);
       } else {
-        disconnectFromRoom(ws);
+        lobby.disconnectFromRoom(ws);
       }
     }
   }
 }
-
-function disconnectFromRoom(ws: webSocket) {}
-
-// function getRoomWhereUserIsConnected(): Room | undefined {
-//   rooms.forEach((r) => {
-//     r.getAdminsAndUsers();
-//   });
-// }

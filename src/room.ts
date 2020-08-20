@@ -4,6 +4,7 @@ export class Room {
   private name: string;
   private admins: User[] = [];
   private users: User[] = [];
+  private disconnectedAdmins: User[] = [];
 
   constructor(name: string, admin: User) {
     this.name = name;
@@ -40,6 +41,16 @@ export class Room {
   }
 
   removeUser(user: User) {
+    this.removeFromArray(user, this.users);
+  }
+
+  removeAdminOrUser(user: User) {
+    const isAdmin = this.admins.includes(user);
+    if (isAdmin) {
+      this.disconnectedAdmins.push(user);
+      this.removeFromArray(user, this.admins);
+      return;
+    }
     this.removeFromArray(user, this.users);
   }
 
