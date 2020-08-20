@@ -1,10 +1,8 @@
-import { User } from './user';
-
 export class Estimate {
-  private user: User;
+  private user: string;
   private estimate: number;
 
-  constructor(user: User, estimate: number) {
+  constructor(user: string, estimate: number) {
     this.user = user;
     this.estimate = estimate;
   }

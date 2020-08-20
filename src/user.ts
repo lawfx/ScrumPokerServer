@@ -1,32 +1,25 @@
 import webSocket from 'ws';
-import { Room } from './room';
+import { RoomsJSON } from './messages';
 
 export class User {
   private name: string;
-  private ws?: webSocket;
-  private room?: Room;
+  private ws: webSocket;
 
-  constructor(name: string) {
+  constructor(name: string, ws: webSocket) {
     this.name = name;
+    this.ws = ws;
+    console.log(`New user created: ${this.name}`);
   }
 
-  getWs(): webSocket | undefined {
+  getWs(): webSocket {
     return this.ws;
   }
 
-  addWs(ws: webSocket) {
-    this.ws = ws;
+  getName() {
+    return this.name;
   }
 
-  addToRoom(room: Room) {
-    this.room = room;
-  }
-
-  exitRoom() {
-    this.room = undefined;
-  }
-
-  getRoom(): Room | undefined {
-    return this.room;
+  sendMessage(message: string) {
+    this.ws.send(message);
   }
 }

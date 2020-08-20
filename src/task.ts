@@ -1,5 +1,4 @@
 import { Estimate } from './estimate';
-import { User } from './user';
 
 export class Task {
   private name: string;
@@ -9,7 +8,7 @@ export class Task {
     this.name = name;
   }
 
-  addEstimate(user: User, estimate: number) {
+  addEstimate(user: string, estimate: number) {
     this.estimates.push(new Estimate(user, estimate));
   }
 
