@@ -24,10 +24,10 @@ function processMessage(ws: webSocket, msg: Data) {
   if (typeof msg === 'string') {
     const msgJSON = JSON.parse(msg);
     if (msgJSON.create_room !== undefined) {
-      lobby.createRoom(ws, msgJSON.create_room);
+      lobby.createRoom(ws, msgJSON.create_room.trim());
     } else if (msgJSON.connect_room !== undefined) {
-      if (msgJSON.connect_room !== '') {
-        lobby.connectToRoom(ws, msgJSON.connect_room);
+      if (msgJSON.connect_room.trim() !== '') {
+        lobby.connectToRoom(ws, msgJSON.connect_room.trim());
       } else {
         lobby.disconnectFromRoom(ws);
       }
