@@ -15,14 +15,14 @@ export class Lobby {
 
   constructor() {}
 
-  addUser(ws: webSocket, req: IncomingMessage) {
+  createUser(ws: webSocket, req: IncomingMessage) {
     //TODO use req to get name from headers
     const user = new User('user' + this.getRandomInt(100), ws);
     this.users.push(user);
     user.sendMessage(JSON.stringify(this.getRoomsJSON()));
   }
 
-  removeUser(ws: webSocket) {
+  destroyUser(ws: webSocket) {
     const user = this.findUser(ws);
     //TODO check if user is in a room
     console.log(`Removing user ${user.getName()}`);
@@ -51,7 +51,7 @@ export class Lobby {
         )
       );
       return;
-    } else if (user.getRoom() !== undefined) {
+    } else if (user.getRoom(this.rooms) !== undefined) {
       user.sendMessage(
         JSON.stringify(
           this.generateError('create_room', 'You are already in a room')
@@ -61,7 +61,6 @@ export class Lobby {
     }
     const room = new Room(roomName, user);
     this.rooms.push(room);
-    user.addToRoom(room);
     user.sendMessage(JSON.stringify(this.getRoomiesJSON(room)));
     this.sendRoomsToFreeUsers();
   }
@@ -79,7 +78,7 @@ export class Lobby {
         )
       );
       return;
-    } else if (user.getRoom() !== undefined) {
+    } else if (user.getRoom(this.rooms) !== undefined) {
       user.sendMessage(
         JSON.stringify(
           this.generateError('connect_room', 'You are already in a room')
@@ -89,15 +88,13 @@ export class Lobby {
     }
 
     room.addUser(user);
-    user.addToRoom(room);
     user.sendMessage(JSON.stringify(this.getRoomiesJSON(room)));
   }
 
   disconnectFromRoom(ws: webSocket) {
     const user = this.findUser(ws);
-    const room = user.getRoom();
+    const room = user.getRoom(this.rooms);
     room?.removeAdminOrUser(user);
-    user.exitRoom();
     user.sendMessage(JSON.stringify(this.getRoomsJSON()));
   }
 
@@ -118,7 +115,7 @@ export class Lobby {
   }
 
   private findFreeUsers(): User[] {
-    return this.users.filter((u) => u.getRoom() === undefined);
+    return this.users.filter((u) => u.getRoom(this.rooms) === undefined);
   }
 
   private roomExists(roomName: string): boolean {

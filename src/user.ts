@@ -4,7 +4,6 @@ import { Room } from './room';
 export class User {
   private name: string;
   private ws: webSocket;
-  private room?: Room;
 
   constructor(name: string, ws: webSocket) {
     this.name = name;
@@ -20,16 +19,10 @@ export class User {
     return this.name;
   }
 
-  addToRoom(room: Room) {
-    this.room = room;
-  }
-
-  exitRoom() {
-    this.room = undefined;
-  }
-
-  getRoom(): Room | undefined {
-    return this.room;
+  getRoom(rooms: Room[]): Room | undefined {
+    return rooms.find((r) =>
+      r.getAdminsAndUsers().find((u) => u.getWs() === this.ws)
+    );
   }
 
   sendMessage(message: string) {

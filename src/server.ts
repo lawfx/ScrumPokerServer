@@ -9,14 +9,14 @@ wss.on('connection', (ws, req) => {
   //   ws.terminate();
   // }
 
-  lobby.addUser(ws, req);
+  lobby.createUser(ws, req);
 
   ws.on('message', (message) => {
     processMessage(ws, message);
   });
 
   ws.on('close', (code, reason) => {
-    lobby.removeUser(ws);
+    lobby.destroyUser(ws);
   });
 });
 
