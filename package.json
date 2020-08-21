@@ -4,7 +4,7 @@
   "description": "A server for hosting scrum poker games",
   "main": "index.js",
   "scripts": {
-    "test": "mocha -r ts-node/register tests/**/*.spec.ts",
+    "test": "mocha -r ts-node/register src/tests/**/*.spec.ts",
     "start": "tsc && node dist/server.js",
     "dev": "nodemon src/server.ts"
   },

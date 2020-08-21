@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import 'mocha';
-import { Room } from '../src/room';
-import { User } from '../src/user';
+import { Room } from '../room';
+import { User } from '../user';
 
 // describe('Room', () => {
 //   it('Kick user', () => {
