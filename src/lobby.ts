@@ -94,7 +94,15 @@ export class Lobby {
   disconnectFromRoom(ws: webSocket) {
     const user = this.findUser(ws);
     const room = user.getRoom(this.rooms);
-    room?.removeAdminOrUser(user);
+    if (room === undefined) {
+      user.sendMessage(
+        JSON.stringify(
+          this.generateError('connect_room', "You aren't in a room")
+        )
+      );
+      return;
+    }
+    room.removeAdminOrUser(user);
     user.sendMessage(JSON.stringify(this.getRoomsJSON()));
   }
 
