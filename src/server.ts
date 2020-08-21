@@ -21,16 +21,22 @@ wss.on('connection', (ws, req) => {
 });
 
 function processMessage(ws: webSocket, msg: Data) {
-  if (typeof msg === 'string') {
-    const msgJSON = JSON.parse(msg);
-    if (msgJSON.create_room !== undefined) {
-      lobby.createRoom(ws, msgJSON.create_room.trim());
-    } else if (msgJSON.connect_room !== undefined) {
-      if (msgJSON.connect_room.trim() !== '') {
-        lobby.connectToRoom(ws, msgJSON.connect_room.trim());
-      } else {
-        lobby.disconnectFromRoom(ws);
-      }
+  if (typeof msg !== 'string') return;
+
+  let msgJSON;
+  try {
+    msgJSON = JSON.parse(msg);
+  } catch (e) {
+    console.error('Got invalid JSON message, ignoring...');
+    return;
+  }
+  if (msgJSON.create_room !== undefined) {
+    lobby.createRoom(ws, msgJSON.create_room.trim());
+  } else if (msgJSON.connect_room !== undefined) {
+    if (msgJSON.connect_room.trim() !== '') {
+      lobby.connectToRoom(ws, msgJSON.connect_room.trim());
+    } else {
+      lobby.disconnectFromRoom(ws);
     }
   }
 }
