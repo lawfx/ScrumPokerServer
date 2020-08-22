@@ -25,7 +25,7 @@ export class User {
     );
   }
 
-  sendMessage(message: string) {
-    this.ws.send(message);
+  sendMessage(message: any) {
+    this.ws.send(JSON.stringify(message));
   }
 }
