@@ -23,8 +23,9 @@ wss.on('connection', (ws, req) => {
   //   ws.close();
   // }
 
-  if (!lobby.createUser(ws, req)) {
-    ws.close(4001);
+  const result = lobby.createUser(ws, req);
+  if (result !== undefined) {
+    ws.close(4001, result);
   }
 
   ws.on('message', (message) => {

@@ -30,20 +30,17 @@ export class Lobby {
     return this.router;
   }
 
-  createUser(ws: webSocket, req: IncomingMessage): boolean {
+  createUser(ws: webSocket, req: IncomingMessage): string | undefined {
     //TODO use req to get name from headers
     const name = this.getQueryVariable(req.url!, 'name');
-    if (
-      name === undefined ||
-      name.length === 0 ||
-      this.getUserByName(name) !== undefined
-    ) {
-      return false;
+    if (name === undefined || name.length === 0) {
+      return "Name can't be empty";
+    } else if (this.getUserByName(name) !== undefined) {
+      return 'A user with that name already exists';
     }
     const user = new User(name, ws);
     this.users.push(user);
     user.sendMessage(this.getRoomsJSON());
-    return true;
   }
 
   destroyUser(ws: webSocket) {
