@@ -2,97 +2,143 @@ import { Room } from './room';
 import { User } from './user';
 import webSocket from 'ws';
 import { IncomingMessage } from 'http';
-import { RoomsJSON, ErrorJSON } from './messages';
+import {
+  RoomsJSON,
+  ErrorJSON,
+  CreateRoomJSONClient,
+  ConnectRoomJSONClient
+} from './messages';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
+import { Router } from 'express';
 
 export class Lobby {
   private rooms: Room[] = [];
   private users: User[] = [];
+  private router: Router;
 
   constructor() {
+    this.router = Router();
+    this.setupRoutes();
     PubSub.subscribe(DESTROY_ROOM, (msg: any, room: Room) => {
       this.destroyRoom(room);
       this.broadcastRooms();
     });
   }
 
-  createUser(ws: webSocket, req: IncomingMessage) {
+  getRouter(): Router {
+    return this.router;
+  }
+
+  createUser(ws: webSocket, req: IncomingMessage): boolean {
     //TODO use req to get name from headers
-    const user = new User('user' + this.getRandomInt(100), ws);
+    const name = this.getQueryVariable(req.url!, 'name');
+    if (
+      name === undefined ||
+      name.length === 0 ||
+      this.getUserByName(name) !== undefined
+    ) {
+      return false;
+    }
+    const user = new User(name, ws);
     this.users.push(user);
     user.sendMessage(this.getRoomsJSON());
+    return true;
   }
 
   destroyUser(ws: webSocket) {
-    const user = this.getUser(ws);
+    const user = this.getUserByWS(ws);
     //TODO check if user is in a room
     console.log(`Removing user ${user.getName()}`);
     this.removeFromArray(user, this.users);
   }
 
-  createRoom(ws: webSocket, roomName: string) {
-    const user = this.getUser(ws);
-    if (roomName === '') {
-      user.sendMessage(
-        this.generateError('create_room', "The room name can't be empty")
+  private setupRoutes() {
+    this.router.put('/rooms/create', (req, res) => {
+      const msg: CreateRoomJSONClient = req.body;
+      const result = this.createRoom(msg.username.trim(), msg.roomname.trim());
+      if (result !== undefined) {
+        res.status(400).send(this.createResponseREST(result));
+        return;
+      }
+      res.status(201).send(this.createResponseREST('Room created'));
+    });
+
+    this.router.patch('/rooms/connect', (req, res) => {
+      const msg: ConnectRoomJSONClient = req.body;
+      const result = this.connectToRoom(
+        msg.username.trim(),
+        msg.roomname.trim()
       );
-      return;
+      if (result !== undefined) {
+        res.status(400).send(this.createResponseREST(result));
+        return;
+      }
+      res
+        .status(200)
+        .send(this.createResponseREST(`Connected to ${msg.roomname}`));
+    });
+
+    this.router.patch('/rooms/disconnect', (req, res) => {
+      const username = req.body.username;
+      const result = this.disconnectFromRoom(username.trim());
+      if (result !== undefined) {
+        res.status(400).send(this.createResponseREST(result));
+        return;
+      }
+      res.status(200).send(this.createResponseREST(`Disconnected from room`));
+    });
+  }
+
+  private createRoom(username: string, roomName: string): string | undefined {
+    const user = this.getUserByName(username);
+    if (user === undefined) {
+      return 'User not found';
+    } else if (roomName === '') {
+      return "The room name can't be empty";
     } else if (this.roomExists(roomName)) {
-      user.sendMessage(
-        this.generateError(
-          'create_room',
-          'A room with this name already exists'
-        )
-      );
-      return;
+      return 'A room with this name already exists';
     } else if (user.getRoom(this.rooms) !== undefined) {
-      user.sendMessage(
-        this.generateError('create_room', 'You are already in a room')
-      );
-      return;
+      return 'You are already in a room';
     }
     const room = new Room(roomName, user);
     this.rooms.push(room);
     this.broadcastRooms();
   }
 
-  connectToRoom(ws: webSocket, roomName: string) {
-    const room = this.rooms.find((r) => r.getName() === roomName);
-    const user = this.getUser(ws);
+  private destroyRoom(room: Room) {
+    console.log(`Destroying room "${room.getName()}"`);
+    this.removeFromArray(room, this.rooms);
+  }
+
+  private connectToRoom(
+    username: string,
+    roomname: string
+  ): string | undefined {
+    const room = this.rooms.find((r) => r.getName() === roomname);
+    const user = this.getUserByName(username);
+    if (user === undefined) {
+      return 'User not found';
+    }
     if (room === undefined) {
-      user.sendMessage(
-        this.generateError(
-          'connect_room',
-          "A room with this name doesn't exist"
-        )
-      );
-      return;
+      return "A room with this name doesn't exist";
     } else if (user.getRoom(this.rooms) !== undefined) {
-      user.sendMessage(
-        this.generateError('connect_room', 'You are already in a room')
-      );
-      return;
+      return 'You are already in a room';
     }
     room.addUser(user);
   }
 
-  disconnectFromRoom(ws: webSocket) {
-    const user = this.getUser(ws);
+  private disconnectFromRoom(username: string): string | undefined {
+    const user = this.getUserByName(username);
+    if (user === undefined) {
+      return 'User not found';
+    }
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
-      user.sendMessage(
-        this.generateError('connect_room', "You aren't in a room")
-      );
-      return;
+      return "You aren't in a room";
     }
     room.removeAdminOrUser(user);
     user.sendMessage(this.getRoomsJSON());
-  }
-
-  private destroyRoom(room: Room) {
-    console.log(`Destroying room "${room.getName()}"`);
-    this.removeFromArray(room, this.rooms);
   }
 
   private broadcastRooms() {
@@ -104,10 +150,12 @@ export class Lobby {
     return Math.floor(Math.random() * Math.floor(max));
   }
 
-  private getUser(ws: webSocket): User {
-    return this.users.find((u) => {
-      return u.getWs() === ws;
-    })!;
+  private getUserByWS(ws: webSocket): User {
+    return this.users.find((u) => u.getWs() === ws)!;
+  }
+
+  private getUserByName(name: string): User | undefined {
+    return this.users.find((u) => u.getName() === name);
   }
 
   private getFreeUsers(): User[] {
@@ -137,5 +185,20 @@ export class Lobby {
     error.command = command;
     error.message = message;
     return error;
+  }
+
+  private createResponseREST(msg: string): string {
+    return JSON.stringify({ message: msg });
+  }
+
+  private getQueryVariable(url: string, variable: string): string | undefined {
+    const query = url.substring(2);
+    const vars = query.split('&');
+    for (let i = 0; i < vars.length; i++) {
+      const pair = vars[i].split('=');
+      if (pair[0] == variable) {
+        return pair[1].replace(/%20/g, '');
+      }
+    }
   }
 }

@@ -34,3 +34,13 @@ export interface ErrorJSON {
   command: string;
   message: string;
 }
+
+export interface CreateRoomJSONClient {
+  username: string;
+  roomname: string;
+}
+
+export interface ConnectRoomJSONClient {
+  username: string;
+  roomname: string;
+}
