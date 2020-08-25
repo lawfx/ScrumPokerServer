@@ -55,7 +55,10 @@ export class Lobby {
   private setupRoutes() {
     this.router.put('/rooms/create', (req, res) => {
       const msg: CreateRoomJSONClient = req.body;
-      const result = this.createRoom(msg.username.trim(), msg.roomname.trim());
+      const result = this.createRoom(
+        msg.username?.trim(),
+        msg.roomname?.trim()
+      );
       if (result === FuncRetEnum.OK) {
         res.status(201).send(this.createResponseREST('Room created'));
       } else {
@@ -66,8 +69,8 @@ export class Lobby {
     this.router.patch('/rooms/connect', (req, res) => {
       const msg: ConnectRoomJSONClient = req.body;
       const result = this.connectToRoom(
-        msg.username.trim(),
-        msg.roomname.trim()
+        msg.username?.trim(),
+        msg.roomname?.trim()
       );
       if (result === FuncRetEnum.OK) {
         res
@@ -80,7 +83,7 @@ export class Lobby {
 
     this.router.patch('/rooms/disconnect', (req, res) => {
       const username = req.body.username;
-      const result = this.disconnectFromRoom(username.trim());
+      const result = this.disconnectFromRoom(username?.trim());
       if (result === FuncRetEnum.OK) {
         res.status(200).send(this.createResponseREST(`Disconnected from room`));
       } else {
@@ -90,6 +93,15 @@ export class Lobby {
   }
 
   private createRoom(username: string, roomName: string): FuncRetEnum {
+    if (
+      username === undefined ||
+      username === null ||
+      roomName === undefined ||
+      roomName === null
+    ) {
+      return FuncRetEnum.MALFORMED_REQUEST;
+    }
+
     const user = this.getUserByName(username);
     if (user === undefined) {
       return FuncRetEnum.USER_NOT_EXISTS;
@@ -112,6 +124,15 @@ export class Lobby {
   }
 
   private connectToRoom(username: string, roomname: string): FuncRetEnum {
+    if (
+      username === undefined ||
+      username === null ||
+      roomname === undefined ||
+      roomname === null
+    ) {
+      return FuncRetEnum.MALFORMED_REQUEST;
+    }
+
     const room = this.rooms.find((r) => r.getName() === roomname);
     const user = this.getUserByName(username);
     if (user === undefined) {
@@ -126,6 +147,10 @@ export class Lobby {
   }
 
   private disconnectFromRoom(username: string): FuncRetEnum {
+    if (username === undefined || username === null) {
+      return FuncRetEnum.MALFORMED_REQUEST;
+    }
+
     const user = this.getUserByName(username);
     if (user === undefined) {
       return FuncRetEnum.USER_NOT_EXISTS;
@@ -206,6 +231,8 @@ export class Lobby {
       res.status(409).send(this.createResponseREST('Already in a room'));
     } else if (result === FuncRetEnum.NOT_IN_A_ROOM) {
       res.status(404).send(this.createResponseREST('Not in a room'));
+    } else if (result === FuncRetEnum.MALFORMED_REQUEST) {
+      res.status(400).send(this.createResponseREST('Malformed request'));
     } else {
       res
         .status(400)
