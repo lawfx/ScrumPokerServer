@@ -10,7 +10,8 @@ import {
 } from './messages';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
-import { Router } from 'express';
+import { Router, Response } from 'express';
+import { FuncRetEnum } from './enums';
 
 export class Lobby {
   private rooms: Room[] = [];
@@ -30,17 +31,18 @@ export class Lobby {
     return this.router;
   }
 
-  createUser(ws: webSocket, req: IncomingMessage): string | undefined {
+  createUser(ws: webSocket, req: IncomingMessage): FuncRetEnum {
     //TODO use req to get name from headers
     const name = this.getQueryVariable(req.url!, 'name');
     if (name === undefined || name.length === 0) {
-      return "Name can't be empty";
+      return FuncRetEnum.USERNAME_EMPTY;
     } else if (this.getUserByName(name) !== undefined) {
-      return 'A user with that name already exists';
+      return FuncRetEnum.USER_ALREADY_EXISTS;
     }
     const user = new User(name, ws);
     this.users.push(user);
     user.sendMessage(this.getRoomsJSON());
+    return FuncRetEnum.OK;
   }
 
   destroyUser(ws: webSocket) {
@@ -54,11 +56,11 @@ export class Lobby {
     this.router.put('/rooms/create', (req, res) => {
       const msg: CreateRoomJSONClient = req.body;
       const result = this.createRoom(msg.username.trim(), msg.roomname.trim());
-      if (result !== undefined) {
-        res.status(400).send(this.createResponseREST(result));
-        return;
+      if (result === FuncRetEnum.OK) {
+        res.status(201).send(this.createResponseREST('Room created'));
+      } else {
+        this.processResult(result, res);
       }
-      res.status(201).send(this.createResponseREST('Room created'));
     });
 
     this.router.patch('/rooms/connect', (req, res) => {
@@ -67,40 +69,41 @@ export class Lobby {
         msg.username.trim(),
         msg.roomname.trim()
       );
-      if (result !== undefined) {
-        res.status(400).send(this.createResponseREST(result));
-        return;
+      if (result === FuncRetEnum.OK) {
+        res
+          .status(200)
+          .send(this.createResponseREST(`Connected to ${msg.roomname}`));
+      } else {
+        this.processResult(result, res);
       }
-      res
-        .status(200)
-        .send(this.createResponseREST(`Connected to ${msg.roomname}`));
     });
 
     this.router.patch('/rooms/disconnect', (req, res) => {
       const username = req.body.username;
       const result = this.disconnectFromRoom(username.trim());
-      if (result !== undefined) {
-        res.status(400).send(this.createResponseREST(result));
-        return;
+      if (result === FuncRetEnum.OK) {
+        res.status(200).send(this.createResponseREST(`Disconnected from room`));
+      } else {
+        this.processResult(result, res);
       }
-      res.status(200).send(this.createResponseREST(`Disconnected from room`));
     });
   }
 
-  private createRoom(username: string, roomName: string): string | undefined {
+  private createRoom(username: string, roomName: string): FuncRetEnum {
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return 'User not found';
+      return FuncRetEnum.USER_NOT_EXISTS;
     } else if (roomName === '') {
-      return "The room name can't be empty";
+      return FuncRetEnum.ROOMNAME_EMPTY;
     } else if (this.roomExists(roomName)) {
-      return 'A room with this name already exists';
+      return FuncRetEnum.ROOM_ALREADY_EXISTS;
     } else if (user.getRoom(this.rooms) !== undefined) {
-      return 'You are already in a room';
+      return FuncRetEnum.ALREADY_IN_A_ROOM;
     }
     const room = new Room(roomName, user);
     this.rooms.push(room);
     this.broadcastRooms();
+    return FuncRetEnum.OK;
   }
 
   private destroyRoom(room: Room) {
@@ -108,34 +111,32 @@ export class Lobby {
     this.removeFromArray(room, this.rooms);
   }
 
-  private connectToRoom(
-    username: string,
-    roomname: string
-  ): string | undefined {
+  private connectToRoom(username: string, roomname: string): FuncRetEnum {
     const room = this.rooms.find((r) => r.getName() === roomname);
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return 'User not found';
-    }
-    if (room === undefined) {
-      return "A room with this name doesn't exist";
+      return FuncRetEnum.USER_NOT_EXISTS;
+    } else if (room === undefined) {
+      return FuncRetEnum.ROOM_NOT_EXISTS;
     } else if (user.getRoom(this.rooms) !== undefined) {
-      return 'You are already in a room';
+      return FuncRetEnum.ALREADY_IN_A_ROOM;
     }
     room.addUser(user);
+    return FuncRetEnum.OK;
   }
 
-  private disconnectFromRoom(username: string): string | undefined {
+  private disconnectFromRoom(username: string): FuncRetEnum {
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return 'User not found';
+      return FuncRetEnum.USER_NOT_EXISTS;
     }
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
-      return "You aren't in a room";
+      return FuncRetEnum.NOT_IN_A_ROOM;
     }
     room.removeAdminOrUser(user);
     user.sendMessage(this.getRoomsJSON());
+    return FuncRetEnum.OK;
   }
 
   private broadcastRooms() {
@@ -186,6 +187,31 @@ export class Lobby {
 
   private createResponseREST(msg: string): string {
     return JSON.stringify({ message: msg });
+  }
+
+  private processResult(result: FuncRetEnum, res: Response) {
+    if (result === FuncRetEnum.USERNAME_EMPTY) {
+      res.status(400).send(this.createResponseREST('Username is empty'));
+    } else if (result === FuncRetEnum.USER_NOT_EXISTS) {
+      res.status(404).send(this.createResponseREST('User not found'));
+    } else if (result === FuncRetEnum.USER_ALREADY_EXISTS) {
+      res.status(409).send(this.createResponseREST('User already exists'));
+    } else if (result === FuncRetEnum.ROOMNAME_EMPTY) {
+      res.status(400).send(this.createResponseREST('Room name is empty'));
+    } else if (result === FuncRetEnum.ROOM_NOT_EXISTS) {
+      res.status(404).send(this.createResponseREST('Room not found'));
+    } else if (result === FuncRetEnum.ROOM_ALREADY_EXISTS) {
+      res.status(409).send(this.createResponseREST('Room already exists'));
+    } else if (result === FuncRetEnum.ALREADY_IN_A_ROOM) {
+      res.status(409).send(this.createResponseREST('Already in a room'));
+    } else if (result === FuncRetEnum.NOT_IN_A_ROOM) {
+      res.status(404).send(this.createResponseREST('Not in a room'));
+    } else {
+      res
+        .status(400)
+        .send(this.createResponseREST('Unhandled result. Contact admin'));
+      console.error(result);
+    }
   }
 
   private getQueryVariable(url: string, variable: string): string | undefined {

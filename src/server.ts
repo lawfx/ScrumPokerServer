@@ -3,6 +3,7 @@ import { Lobby } from './lobby';
 import express from 'express';
 import bodyParser from 'body-parser';
 import { CreateRoomJSONClient } from './messages';
+import { FuncRetEnum } from './enums';
 
 const app = express();
 app.use(bodyParser.json());
@@ -24,8 +25,15 @@ wss.on('connection', (ws, req) => {
   // }
 
   const result = lobby.createUser(ws, req);
-  if (result !== undefined) {
-    ws.close(4001, result);
+  if (result !== FuncRetEnum.OK) {
+    ws.close(
+      4001,
+      result === FuncRetEnum.USERNAME_EMPTY
+        ? 'Username is empty'
+        : result === FuncRetEnum.USER_ALREADY_EXISTS
+        ? 'User already exists'
+        : 'Unknown error'
+    );
   }
 
   ws.on('message', (message) => {
