@@ -216,30 +216,61 @@ export class Lobby {
   }
 
   private processResult(result: FuncRetEnum, res: Response) {
-    if (result === FuncRetEnum.USERNAME_EMPTY) {
-      res.status(400).send(this.createResponseREST('Username is empty'));
-    } else if (result === FuncRetEnum.USER_NOT_EXISTS) {
-      res.status(404).send(this.createResponseREST('User not found'));
-    } else if (result === FuncRetEnum.USER_ALREADY_EXISTS) {
-      res.status(409).send(this.createResponseREST('User already exists'));
-    } else if (result === FuncRetEnum.ROOMNAME_EMPTY) {
-      res.status(400).send(this.createResponseREST('Room name is empty'));
-    } else if (result === FuncRetEnum.ROOM_NOT_EXISTS) {
-      res.status(404).send(this.createResponseREST('Room not found'));
-    } else if (result === FuncRetEnum.ROOM_ALREADY_EXISTS) {
-      res.status(409).send(this.createResponseREST('Room already exists'));
-    } else if (result === FuncRetEnum.ALREADY_IN_A_ROOM) {
-      res.status(409).send(this.createResponseREST('Already in a room'));
-    } else if (result === FuncRetEnum.NOT_IN_A_ROOM) {
-      res.status(404).send(this.createResponseREST('Not in a room'));
-    } else if (result === FuncRetEnum.MALFORMED_REQUEST) {
-      res.status(400).send(this.createResponseREST('Malformed request'));
-    } else {
-      res
-        .status(400)
-        .send(this.createResponseREST('Unhandled result. Contact admin'));
-      console.error(result);
+    let code: number;
+    let message: string;
+    switch (result) {
+      case FuncRetEnum.USERNAME_EMPTY: {
+        code = 400;
+        message = 'Username is empty';
+        break;
+      }
+      case FuncRetEnum.USER_NOT_EXISTS: {
+        code = 404;
+        message = 'User not found';
+        break;
+      }
+      case FuncRetEnum.USER_ALREADY_EXISTS: {
+        code = 409;
+        message = 'User already exists';
+        break;
+      }
+      case FuncRetEnum.ROOMNAME_EMPTY: {
+        code = 400;
+        message = 'Room name is empty';
+        break;
+      }
+      case FuncRetEnum.ROOM_NOT_EXISTS: {
+        code = 404;
+        message = 'Room not found';
+        break;
+      }
+      case FuncRetEnum.ROOM_ALREADY_EXISTS: {
+        code = 409;
+        message = 'Room already exists';
+        break;
+      }
+      case FuncRetEnum.ALREADY_IN_A_ROOM: {
+        code = 409;
+        message = 'Already in a room';
+        break;
+      }
+      case FuncRetEnum.NOT_IN_A_ROOM: {
+        code = 404;
+        message = 'Not in a room';
+        break;
+      }
+      case FuncRetEnum.MALFORMED_REQUEST: {
+        code = 400;
+        message = 'Malformed request';
+        break;
+      }
+      default: {
+        code = 400;
+        message = 'Unhandled result. Contact admin';
+        console.error(result);
+      }
     }
+    res.status(code).send(this.createResponseREST(message));
   }
 
   private getQueryVariable(url: string, variable: string): string | undefined {
