@@ -17,14 +17,12 @@ export class Room {
 
   addAdmin(admin: User) {
     this.admins.push(admin);
-    console.log(`${admin.getName()} added as admin to room ${this.getName()}`);
+    console.log(`${admin.getName()} added as admin to ${this.getName()}`);
     this.broadcastRoomies();
   }
 
   removeAdmin(admin: User) {
-    console.log(
-      `Removing admin ${admin.getName()} from room ${this.getName()}`
-    );
+    console.log(`Removing admin ${admin.getName()} from ${this.getName()}`);
     this.removeFromArray(admin, this.admins);
     this.broadcastRoomies();
     if (this.isEmpty()) {
@@ -34,12 +32,12 @@ export class Room {
 
   addUser(user: User) {
     this.users.push(user);
-    console.log(`${user.getName()} added as user to room ${this.getName()}`);
+    console.log(`${user.getName()} added as user to ${this.getName()}`);
     this.broadcastRoomies();
   }
 
   removeUser(user: User) {
-    console.log(`Removing user ${user.getName()} from room ${this.getName()}`);
+    console.log(`Removing user ${user.getName()} from ${this.getName()}`);
     this.removeFromArray(user, this.users);
     this.broadcastRoomies();
     if (this.isEmpty()) {

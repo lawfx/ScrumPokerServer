@@ -47,8 +47,9 @@ export class Lobby {
 
   destroyUser(ws: webSocket) {
     const user = this.getUserByWS(ws);
-    //TODO check if user is in a room
     console.log(`Removing user ${user.getName()}`);
+    const room = user.getRoom(this.rooms);
+    room?.removeAdminOrUser(user);
     this.removeFromArray(user, this.users);
   }
 
