@@ -268,6 +268,7 @@ export class Lobby {
         code = 400;
         message = 'Unhandled result. Contact admin';
         console.error(result);
+        break;
       }
     }
     res.status(code).send(this.createResponseREST(message));

@@ -7,7 +7,6 @@ export enum FuncRetEnum {
   ROOM_ALREADY_EXISTS,
   ALREADY_IN_A_ROOM,
   NOT_IN_A_ROOM,
-  BAD_REQUEST,
   OK,
   MALFORMED_REQUEST
 }
