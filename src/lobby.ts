@@ -21,6 +21,8 @@ export class Lobby {
   constructor() {
     this.router = Router();
     this.setupRoutes();
+    // we don't need to delete the users from the room or something, because they are only referenced in there
+    // so when we delete the room they are considered in no room
     PubSub.subscribe(DESTROY_ROOM, (msg: any, room: Room) => {
       this.destroyRoom(room);
       this.broadcastRooms();
@@ -49,7 +51,7 @@ export class Lobby {
     const user = this.getUserByWS(ws);
     console.log(`Removing user ${user.getName()}`);
     const room = user.getRoom(this.rooms);
-    room?.removeAdminOrUser(user);
+    room?.remove(user);
     this.removeFromArray(user, this.users);
   }
 
@@ -120,7 +122,7 @@ export class Lobby {
   }
 
   private destroyRoom(room: Room) {
-    console.log(`Destroying room "${room.getName()}"`);
+    console.log(`[${room.getName()}] Destroyed`);
     this.removeFromArray(room, this.rooms);
   }
 
@@ -143,7 +145,7 @@ export class Lobby {
     } else if (user.getRoom(this.rooms) !== undefined) {
       return FuncRetEnum.ALREADY_IN_A_ROOM;
     }
-    room.addUser(user);
+    room.add(user);
     return FuncRetEnum.OK;
   }
 
@@ -160,7 +162,7 @@ export class Lobby {
     if (room === undefined) {
       return FuncRetEnum.NOT_IN_A_ROOM;
     }
-    room.removeAdminOrUser(user);
+    room.remove(user);
     user.sendMessage(this.getRoomsJSON());
     return FuncRetEnum.OK;
   }

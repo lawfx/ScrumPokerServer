@@ -8,41 +8,32 @@ export class Room {
   private admins: User[] = [];
   private users: User[] = [];
   private disconnectedAdmins: string[] = [];
+  private destructionTimeoutID?: NodeJS.Timeout;
+  private readonly DESTRUCTION_TIMEOUT: number = 60000;
 
   constructor(name: string, admin: User) {
-    console.log(`New room "${name}" created by ${admin.getName()}`);
+    console.log(`[${name}] Created by ${admin.getName()}`);
     this.name = name;
     this.addAdmin(admin);
   }
 
-  addAdmin(admin: User) {
-    this.admins.push(admin);
-    console.log(`${admin.getName()} added as admin to ${this.getName()}`);
-    this.broadcastRoomies();
-  }
-
-  removeAdmin(admin: User) {
-    console.log(`Removing admin ${admin.getName()} from ${this.getName()}`);
-    this.removeFromArray(admin, this.admins);
-    this.broadcastRoomies();
-    if (this.isEmpty()) {
-      PubSub.publish(DESTROY_ROOM, this);
+  /** Adds a new user to the room. If he was an admin in this room before, he gets added as an admin, otherwise as a regular user. */
+  add(user: User) {
+    if (this.isDisconnectedAdmin(user)) {
+      this.addAdmin(user);
+      return;
     }
+    this.addUser(user);
   }
 
-  addUser(user: User) {
-    this.users.push(user);
-    console.log(`${user.getName()} added as user to ${this.getName()}`);
-    this.broadcastRoomies();
-  }
-
-  removeUser(user: User) {
-    console.log(`Removing user ${user.getName()} from ${this.getName()}`);
-    this.removeFromArray(user, this.users);
-    this.broadcastRoomies();
-    if (this.isEmpty()) {
-      PubSub.publish(DESTROY_ROOM, this);
+  /** Removes an admin or a user from the room. */
+  remove(user: User) {
+    const isAdmin = this.admins.includes(user);
+    if (isAdmin) {
+      this.removeAdmin(user);
+      return;
     }
+    this.removeUser(user);
   }
 
   getAdmins() {
@@ -61,14 +52,53 @@ export class Room {
     return [...this.admins, ...this.users];
   }
 
-  removeAdminOrUser(user: User) {
-    const isAdmin = this.admins.includes(user);
-    if (isAdmin) {
-      this.disconnectedAdmins.push(user.getName());
-      this.removeAdmin(user);
-      return;
+  private addAdmin(admin: User) {
+    this.removeFromArray(admin.getName(), this.disconnectedAdmins);
+    if (this.destructionTimeoutID !== undefined) {
+      clearTimeout(this.destructionTimeoutID);
+      this.destructionTimeoutID = undefined;
+      console.log(`[${this.name}] Destruction aborted`);
     }
-    this.removeUser(user);
+    this.admins.push(admin);
+    console.log(`[${this.name}] ${admin.getName()} added as admin`);
+    this.broadcastRoomies();
+  }
+
+  private removeAdmin(admin: User) {
+    console.log(`[${this.name}] Removing admin ${admin.getName()}`);
+    this.disconnectedAdmins.push(admin.getName());
+    this.removeFromArray(admin, this.admins);
+    this.broadcastRoomies();
+    if (this.isEmpty()) {
+      PubSub.publish(DESTROY_ROOM, this);
+    } else if (this.admins.length === 0) {
+      console.log(
+        `[${this.name}] To be destroyed in ${this.DESTRUCTION_TIMEOUT / 1000}s`
+      );
+      this.destructionTimeoutID = setTimeout(
+        () => PubSub.publish(DESTROY_ROOM, this),
+        this.DESTRUCTION_TIMEOUT
+      );
+    }
+  }
+
+  private addUser(user: User) {
+    this.users.push(user);
+    console.log(`[${this.name}] ${user.getName()} added as user`);
+    this.broadcastRoomies();
+  }
+
+  private removeUser(user: User) {
+    console.log(`[${this.name}] Removing user ${user.getName()}`);
+    this.removeFromArray(user, this.users);
+    this.broadcastRoomies();
+    if (this.isEmpty()) {
+      PubSub.publish(DESTROY_ROOM, this);
+    }
+  }
+
+  private isDisconnectedAdmin(user: User): boolean {
+    return this.disconnectedAdmins.includes(user.getName());
   }
 
   private isEmpty() {
@@ -76,7 +106,7 @@ export class Room {
   }
 
   private broadcastRoomies() {
-    console.log(`Broadcasting roomies of room ${this.getName()}`);
+    console.log(`[${this.name}] Broadcasting roomies`);
     [...this.admins, ...this.users].forEach((u) =>
       u.sendMessage(this.getRoomiesJSON())
     );
