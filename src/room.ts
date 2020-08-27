@@ -1,15 +1,24 @@
 import { User } from './user';
-import { RoomiesJSON, RoomiesContentJSON } from './messages';
+import {
+  RoomiesJSON,
+  RoomiesContentJSON,
+  EstimateRequestJSON
+} from './messages';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
+import { EstimateRequest } from './estimate-request';
+import { Estimate } from './estimate';
 
 export class Room {
   private name: string;
   private admins: User[] = [];
   private users: User[] = [];
   private disconnectedAdmins: string[] = [];
+
   private destructionTimeoutID?: NodeJS.Timeout;
   private readonly DESTRUCTION_TIMEOUT: number = 60000;
+
+  private task?: EstimateRequest;
 
   constructor(name: string, admin: User) {
     console.log(`[${name}] Created by ${admin.getName()}`);
@@ -35,6 +44,30 @@ export class Room {
     }
     this.removeUser(user);
   }
+
+  createEstimateRequest(user: User, taskName: string) {
+    if (this.task !== undefined) {
+      console.error(
+        `[${this.name}] There is an estimate request already in progress`
+      );
+      return;
+    } else if (taskName === undefined || taskName === '') {
+      console.error(`[${this.name}] Task name can't be empty`);
+      return;
+    } else if (!this.isAdmin(user)) {
+      console.error(
+        `[${
+          this.name
+        }] ${user.getName()} tried to send an estimate request but he isn't an admin. How did this happen?`
+      );
+      return;
+    }
+    this.task = new EstimateRequest(taskName);
+    console.log(`[${this.name}] Estimate request for ${taskName}`);
+    this.broadcastEstimateRequest();
+  }
+
+  addEstimate(user: User, estimate: number) {}
 
   getAdmins() {
     return this.admins;
@@ -101,6 +134,10 @@ export class Room {
     return this.disconnectedAdmins.includes(user.getName());
   }
 
+  private isAdmin(user: User): boolean {
+    return this.admins.includes(user);
+  }
+
   private isEmpty() {
     return this.admins.length === 0 && this.users.length === 0;
   }
@@ -109,6 +146,13 @@ export class Room {
     console.log(`[${this.name}] Broadcasting roomies`);
     [...this.admins, ...this.users].forEach((u) =>
       u.sendMessage(this.getRoomiesJSON())
+    );
+  }
+
+  private broadcastEstimateRequest() {
+    console.log(`[${this.name}] Broadcasting estimate request`);
+    [...this.admins, ...this.users].forEach((u) =>
+      u.sendMessage(this.getEstimateRequestJSON())
     );
   }
 
@@ -121,6 +165,12 @@ export class Room {
     this.admins.forEach((a) => roomiesContentJson.admins.push(a.getName()));
     this.users.forEach((u) => roomiesContentJson.users.push(u.getName()));
     return roomiesJson;
+  }
+
+  private getEstimateRequestJSON(): EstimateRequestJSON {
+    const estimateReq = {} as EstimateRequestJSON;
+    estimateReq.estimate_request = this.task!.getName();
+    return estimateReq;
   }
 
   private removeFromArray<T>(obj: T, array: T[]) {

@@ -55,6 +55,18 @@ export class Lobby {
     this.removeFromArray(user, this.users);
   }
 
+  requestEstimate(ws: webSocket, taskName: string) {
+    const user = this.getUserByWS(ws);
+    const room = user.getRoom(this.rooms);
+    if (room === undefined) {
+      console.error(
+        `${user.getName()} requested estimate but is not in a room`
+      );
+      return;
+    }
+    room.createEstimateRequest(user, taskName?.trim());
+  }
+
   private setupRoutes() {
     this.router.put('/rooms/create', (req, res) => {
       const msg: CreateRoomJSONClient = req.body;

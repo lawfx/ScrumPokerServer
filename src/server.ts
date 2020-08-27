@@ -50,9 +50,11 @@ wss.on('connection', (ws, req) => {
 function processMessage(ws: webSocket, msg: Data) {
   if (typeof msg !== 'string') return;
 
-  let msgJSON;
   try {
-    msgJSON = JSON.parse(msg);
+    const msgJSON = JSON.parse(msg);
+    if (msgJSON.request_estimate !== undefined) {
+      lobby.requestEstimate(ws, msgJSON.request_estimate);
+    }
   } catch (e) {
     console.error('Got invalid JSON message, ignoring...');
     return;
