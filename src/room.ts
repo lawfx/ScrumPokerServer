@@ -2,12 +2,13 @@ import { User } from './user';
 import {
   RoomiesJSON,
   RoomiesContentJSON,
-  EstimateRequestJSON
+  TaskEstimationContentJSON,
+  TaskEstimationJSON,
+  TaskEstimationContentEstimatesJSON
 } from './messages';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
 import { EstimateRequest } from './estimate-request';
-import { Estimate } from './estimate';
 
 export class Room {
   private name: string;
@@ -18,7 +19,7 @@ export class Room {
   private destructionTimeoutID?: NodeJS.Timeout;
   private readonly DESTRUCTION_TIMEOUT: number = 60000;
 
-  private task?: EstimateRequest;
+  private estimateRequest?: EstimateRequest;
 
   constructor(name: string, admin: User) {
     console.log(`[${name}] Created by ${admin.getName()}`);
@@ -40,34 +41,60 @@ export class Room {
     const isAdmin = this.admins.includes(user);
     if (isAdmin) {
       this.removeAdmin(user);
-      return;
+    } else {
+      this.removeUser(user);
     }
-    this.removeUser(user);
+    if (this.isEmpty()) {
+      if (this.destructionTimeoutID !== undefined) {
+        clearTimeout(this.destructionTimeoutID);
+        this.destructionTimeoutID = undefined;
+        console.log(
+          `[${this.name}] Destruction aborted because room will be destroyed immediately`
+        );
+      }
+      PubSub.publish(DESTROY_ROOM, this);
+    }
   }
 
-  createEstimateRequest(user: User, taskName: string) {
-    if (this.task !== undefined) {
+  createEstimateRequest(user: User, estimateRequestId: string) {
+    if (this.estimateRequest !== undefined) {
       console.error(
         `[${this.name}] There is an estimate request already in progress`
       );
       return;
-    } else if (taskName === undefined || taskName === '') {
+    } else if (estimateRequestId === undefined || estimateRequestId === '') {
       console.error(`[${this.name}] Task name can't be empty`);
       return;
     } else if (!this.isAdmin(user)) {
       console.error(
         `[${
           this.name
-        }] ${user.getName()} tried to send an estimate request but he isn't an admin. How did this happen?`
+        }] ${user.getName()} tried to send an estimate request but he isn't an admin.`
       );
       return;
     }
-    this.task = new EstimateRequest(taskName);
-    console.log(`[${this.name}] Estimate request for ${taskName}`);
-    this.broadcastEstimateRequest();
+    this.estimateRequest = new EstimateRequest(estimateRequestId);
+    console.log(`[${this.name}] Estimate request for ${estimateRequestId}`);
+    this.broadcastRoomies();
   }
 
-  addEstimate(user: User, estimate: number) {}
+  addEstimate(user: User, estimate: number) {
+    if (this.estimateRequest === undefined) {
+      console.error(`[${this.name}] There is no estimate request in progress`);
+      return;
+    }
+    if (this.estimateRequest.addEstimate(user, estimate)) {
+      this.broadcastEstimates();
+      if (
+        this.estimateRequest.hasEveryoneEstimated([
+          ...this.admins,
+          ...this.users
+        ])
+      ) {
+        this.estimateRequest = undefined;
+      }
+    }
+  }
 
   getAdmins() {
     return this.admins;
@@ -102,9 +129,7 @@ export class Room {
     this.disconnectedAdmins.push(admin.getName());
     this.removeFromArray(admin, this.admins);
     this.broadcastRoomies();
-    if (this.isEmpty()) {
-      PubSub.publish(DESTROY_ROOM, this);
-    } else if (this.admins.length === 0) {
+    if (this.admins.length === 0) {
       console.log(
         `[${this.name}] To be destroyed in ${this.DESTRUCTION_TIMEOUT / 1000}s`
       );
@@ -125,9 +150,6 @@ export class Room {
     console.log(`[${this.name}] Removing user ${user.getName()}`);
     this.removeFromArray(user, this.users);
     this.broadcastRoomies();
-    if (this.isEmpty()) {
-      PubSub.publish(DESTROY_ROOM, this);
-    }
   }
 
   private isDisconnectedAdmin(user: User): boolean {
@@ -144,16 +166,17 @@ export class Room {
 
   private broadcastRoomies() {
     console.log(`[${this.name}] Broadcasting roomies`);
-    [...this.admins, ...this.users].forEach((u) =>
-      u.sendMessage(this.getRoomiesJSON())
-    );
+    const res = this.getRoomiesJSON();
+    [...this.admins, ...this.users].forEach((u) => u.sendMessage(res));
   }
 
-  private broadcastEstimateRequest() {
-    console.log(`[${this.name}] Broadcasting estimate request`);
-    [...this.admins, ...this.users].forEach((u) =>
-      u.sendMessage(this.getEstimateRequestJSON())
-    );
+  private broadcastEstimates() {
+    console.log(`[${this.name}] Broadcasting estimates`);
+    const res = this.getEstimatesJSON();
+    this.admins.forEach((u) => u.sendMessage(res));
+    this.users
+      .filter((u) => this.estimateRequest?.hasEstimated(u))
+      .forEach((u) => u.sendMessage(res));
   }
 
   private getRoomiesJSON(): RoomiesJSON {
@@ -162,15 +185,27 @@ export class Room {
     roomiesJson.roomies = roomiesContentJson;
     roomiesContentJson.admins = [];
     roomiesContentJson.users = [];
+    roomiesContentJson.estimate_request = this.estimateRequest?.getId() ?? '';
     this.admins.forEach((a) => roomiesContentJson.admins.push(a.getName()));
     this.users.forEach((u) => roomiesContentJson.users.push(u.getName()));
     return roomiesJson;
   }
 
-  private getEstimateRequestJSON(): EstimateRequestJSON {
-    const estimateReq = {} as EstimateRequestJSON;
-    estimateReq.estimate_request = this.task!.getName();
-    return estimateReq;
+  private getEstimatesJSON(): TaskEstimationJSON {
+    const taskEstimationJson = {} as TaskEstimationJSON;
+    const taskEstimationContentJson = {} as TaskEstimationContentJSON;
+    taskEstimationJson.task_estimation = taskEstimationContentJson;
+    taskEstimationContentJson.task = this.estimateRequest!.getId();
+    taskEstimationContentJson.estimates = [];
+    this.estimateRequest?.getEstimates().forEach((e) => {
+      const taskEstimationContentEstimatesJSON = {} as TaskEstimationContentEstimatesJSON;
+      taskEstimationContentEstimatesJSON.name = e.getUser().getName();
+      taskEstimationContentEstimatesJSON.estimate = e.getEstimate();
+      taskEstimationContentJson.estimates.push(
+        taskEstimationContentEstimatesJSON
+      );
+    });
+    return taskEstimationJson;
   }
 
   private removeFromArray<T>(obj: T, array: T[]) {

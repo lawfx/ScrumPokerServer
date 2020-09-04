@@ -2,15 +2,20 @@ import { Estimate } from './estimate';
 import { User } from './user';
 
 export class EstimateRequest {
-  private name: string;
+  private id: string;
   private estimates: Estimate[] = [];
 
-  constructor(name: string) {
-    this.name = name;
+  constructor(id: string) {
+    this.id = id;
   }
 
-  addEstimate(user: User, estimate: number) {
+  addEstimate(user: User, estimate: number): boolean {
+    if (this.hasEstimated(user)) {
+      console.error(`[${this.id}] ${user.getName()} has already estimated`);
+      return false;
+    }
     this.estimates.push(new Estimate(user, estimate));
+    return true;
   }
 
   hasEveryoneEstimated(users: User[]): boolean {
@@ -28,11 +33,11 @@ export class EstimateRequest {
     return this.estimates;
   }
 
-  getName(): string {
-    return this.name;
+  getId(): string {
+    return this.id;
   }
 
-  private hasEstimated(user: User): boolean {
+  hasEstimated(user: User): boolean {
     return (
       this.estimates.find((e) => e.getUser().getName() === user.getName()) !==
       undefined

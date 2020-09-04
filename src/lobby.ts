@@ -55,7 +55,7 @@ export class Lobby {
     this.removeFromArray(user, this.users);
   }
 
-  requestEstimate(ws: webSocket, taskName: string) {
+  requestEstimate(ws: webSocket, estimateRequestId: string) {
     const user = this.getUserByWS(ws);
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
@@ -64,7 +64,20 @@ export class Lobby {
       );
       return;
     }
-    room.createEstimateRequest(user, taskName?.trim());
+    room.createEstimateRequest(user, estimateRequestId?.trim());
+  }
+
+  addEstimate(ws: webSocket, estimate: number) {
+    const user = this.getUserByWS(ws);
+    const room = user.getRoom(this.rooms);
+    if (room === undefined) {
+      console.error(`${user.getName()} sent an estimate but is not in a room`);
+      return;
+    } else if (typeof estimate !== 'number') {
+      console.error(`${user.getName()} sent invalid estimate`);
+      return;
+    }
+    room.addEstimate(user, estimate);
   }
 
   private setupRoutes() {
@@ -182,10 +195,6 @@ export class Lobby {
   private broadcastRooms() {
     console.log('Broadcasting rooms');
     this.getFreeUsers().forEach((u) => u.sendMessage(this.getRoomsJSON()));
-  }
-
-  private getRandomInt(max: number) {
-    return Math.floor(Math.random() * Math.floor(max));
   }
 
   private getUserByWS(ws: webSocket): User {

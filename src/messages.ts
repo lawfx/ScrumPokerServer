@@ -10,9 +10,6 @@ export interface RoomiesJSON {
 export interface RoomiesContentJSON {
   admins: string[];
   users: string[];
-}
-
-export interface EstimateRequestJSON {
   estimate_request: string;
 }
 
@@ -34,6 +31,8 @@ export interface ErrorJSON {
   command: string;
   message: string;
 }
+
+/** Messages from client to server */
 
 export interface CreateRoomJSONClient {
   username: string;

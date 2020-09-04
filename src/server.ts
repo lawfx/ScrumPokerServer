@@ -54,6 +54,8 @@ function processMessage(ws: webSocket, msg: Data) {
     const msgJSON = JSON.parse(msg);
     if (msgJSON.request_estimate !== undefined) {
       lobby.requestEstimate(ws, msgJSON.request_estimate);
+    } else if (msgJSON.estimate !== undefined) {
+      lobby.addEstimate(ws, msgJSON.estimate);
     }
   } catch (e) {
     console.error('Got invalid JSON message, ignoring...');
