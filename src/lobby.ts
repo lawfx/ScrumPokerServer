@@ -51,7 +51,7 @@ export class Lobby {
     const user = this.getUserByWS(ws);
     console.log(`Removing user ${user.getName()}`);
     const room = user.getRoom(this.rooms);
-    room?.remove(user);
+    room?.removeUser(user);
     this.removeFromArray(user, this.users);
   }
 
@@ -170,7 +170,7 @@ export class Lobby {
     } else if (user.getRoom(this.rooms) !== undefined) {
       return FuncRetEnum.ALREADY_IN_A_ROOM;
     }
-    room.add(user);
+    room.addUser(user);
     return FuncRetEnum.OK;
   }
 
@@ -187,7 +187,7 @@ export class Lobby {
     if (room === undefined) {
       return FuncRetEnum.NOT_IN_A_ROOM;
     }
-    room.remove(user);
+    room.removeUser(user);
     user.sendMessage(this.getRoomsJSON());
     return FuncRetEnum.OK;
   }

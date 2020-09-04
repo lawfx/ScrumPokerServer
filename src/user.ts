@@ -20,9 +20,7 @@ export class User {
   }
 
   getRoom(rooms: Room[]): Room | undefined {
-    return rooms.find((r) =>
-      r.getAdminsAndUsers().find((u) => u.getWs() === this.ws)
-    );
+    return rooms.find((r) => r.getUsers().find((u) => u.getWs() === this.ws));
   }
 
   sendMessage(message: any) {
