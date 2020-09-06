@@ -57,12 +57,7 @@ export class Room {
   }
 
   createEstimateRequest(user: User, estimateRequestId: string) {
-    if (this.estimateRequest !== undefined) {
-      console.error(
-        `[${this.name}] There is an estimate request already in progress`
-      );
-      return;
-    } else if (estimateRequestId === undefined || estimateRequestId === '') {
+    if (estimateRequestId === undefined || estimateRequestId === '') {
       console.error(`[${this.name}] Task name can't be empty`);
       return;
     } else if (!this.isAdmin(user)) {
