@@ -3,11 +3,11 @@ export interface RoomsJSON {
   rooms: string[];
 }
 
-export interface RoomiesJSON {
-  roomies: RoomiesContentJSON;
+export interface RoomStatusJSON {
+  room_status: RoomStatusContentJSON;
 }
 
-export interface RoomiesContentJSON {
+export interface RoomStatusContentJSON {
   admins: string[];
   users: string[];
   estimate_request: string;

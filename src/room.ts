@@ -1,7 +1,7 @@
 import { User } from './user';
 import {
-  RoomiesJSON,
-  RoomiesContentJSON,
+  RoomStatusJSON,
+  RoomStatusContentJSON,
   TaskEstimationContentJSON,
   TaskEstimationJSON,
   TaskEstimationContentEstimatesJSON
@@ -75,7 +75,7 @@ export class Room {
     }
     this.estimateRequest = new EstimateRequest(estimateRequestId);
     console.log(`[${this.name}] Estimate request for ${estimateRequestId}`);
-    this.broadcastRoomies();
+    this.broadcastRoomStatus();
   }
 
   addEstimate(user: User, estimate: number) {
@@ -121,14 +121,14 @@ export class Room {
     }
     this.admins.push(admin);
     console.log(`[${this.name}] ${admin.getName()} added as admin`);
-    this.broadcastRoomies();
+    this.broadcastRoomStatus();
   }
 
   private removeAdmin(admin: User) {
     console.log(`[${this.name}] Removing admin ${admin.getName()}`);
     this.disconnectedAdmins.push(admin.getName());
     this.removeFromArray(admin, this.admins);
-    this.broadcastRoomies();
+    this.broadcastRoomStatus();
     if (this.admins.length === 0) {
       console.log(
         `[${this.name}] To be destroyed in ${this.DESTRUCTION_TIMEOUT / 1000}s`
@@ -143,13 +143,13 @@ export class Room {
   private addEstimator(estimator: User) {
     this.estimators.push(estimator);
     console.log(`[${this.name}] ${estimator.getName()} added as estimator`);
-    this.broadcastRoomies();
+    this.broadcastRoomStatus();
   }
 
   private removeEstimator(estimator: User) {
     console.log(`[${this.name}] Removing estimator ${estimator.getName()}`);
     this.removeFromArray(estimator, this.estimators);
-    this.broadcastRoomies();
+    this.broadcastRoomStatus();
   }
 
   private isDisconnectedAdmin(user: User): boolean {
@@ -164,9 +164,9 @@ export class Room {
     return this.admins.length === 0 && this.estimators.length === 0;
   }
 
-  private broadcastRoomies() {
-    console.log(`[${this.name}] Broadcasting roomies`);
-    const res = this.getRoomiesJSON();
+  private broadcastRoomStatus() {
+    console.log(`[${this.name}] Broadcasting room status`);
+    const res = this.getRoomStatusJSON();
     [...this.admins, ...this.estimators].forEach((u) => u.sendMessage(res));
   }
 
@@ -179,16 +179,19 @@ export class Room {
       .forEach((u) => u.sendMessage(res));
   }
 
-  private getRoomiesJSON(): RoomiesJSON {
-    const roomiesJson = {} as RoomiesJSON;
-    const roomiesContentJson = {} as RoomiesContentJSON;
-    roomiesJson.roomies = roomiesContentJson;
-    roomiesContentJson.admins = [];
-    roomiesContentJson.users = [];
-    roomiesContentJson.estimate_request = this.estimateRequest?.getId() ?? '';
-    this.admins.forEach((a) => roomiesContentJson.admins.push(a.getName()));
-    this.estimators.forEach((u) => roomiesContentJson.users.push(u.getName()));
-    return roomiesJson;
+  private getRoomStatusJSON(): RoomStatusJSON {
+    const roomStatusJson = {} as RoomStatusJSON;
+    const roomStatusContentJson = {} as RoomStatusContentJSON;
+    roomStatusJson.room_status = roomStatusContentJson;
+    roomStatusContentJson.admins = [];
+    roomStatusContentJson.users = [];
+    roomStatusContentJson.estimate_request =
+      this.estimateRequest?.getId() ?? '';
+    this.admins.forEach((a) => roomStatusContentJson.admins.push(a.getName()));
+    this.estimators.forEach((u) =>
+      roomStatusContentJson.users.push(u.getName())
+    );
+    return roomStatusJson;
   }
 
   private getEstimatesJSON(): TaskEstimationJSON {
