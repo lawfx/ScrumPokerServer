@@ -21,7 +21,7 @@ export class Lobby {
   constructor() {
     this.router = Router();
     this.setupRoutes();
-    // we don't need to delete the users from the room or something, because they are only referenced in there
+    // we don't need to delete the users from the room, because they are only referenced in there
     // so when we delete the room they are considered in no room
     PubSub.subscribe(DESTROY_ROOM, (msg: any, room: Room) => {
       this.destroyRoom(room);
@@ -118,6 +118,16 @@ export class Lobby {
         this.processResult(result, res);
       }
     });
+
+    this.router.delete('/rooms/destroy', (req, res) => {
+      const username = req.body.username;
+      const result = this.destroyRoomOrderedByUser(username?.trim());
+      if (result === FuncRetEnum.OK) {
+        res.status(200).send(this.createResponseREST(`Room destroyed`));
+      } else {
+        this.processResult(result, res);
+      }
+    });
   }
 
   private createRoom(username: string, roomName: string): FuncRetEnum {
@@ -149,6 +159,27 @@ export class Lobby {
   private destroyRoom(room: Room) {
     console.log(`[${room.getName()}] Destroyed`);
     this.removeFromArray(room, this.rooms);
+  }
+
+  private destroyRoomOrderedByUser(username: string): FuncRetEnum {
+    if (username === undefined || username === null) {
+      return FuncRetEnum.MALFORMED_REQUEST;
+    }
+
+    const user = this.getUserByName(username);
+    if (user === undefined) {
+      return FuncRetEnum.USER_NOT_EXISTS;
+    }
+    const room = user.getRoom(this.rooms);
+    if (room === undefined) {
+      return FuncRetEnum.NOT_IN_A_ROOM;
+    } else if (!room.isAdmin(user)) {
+      return FuncRetEnum.USER_NOT_ADMIN;
+    }
+
+    this.destroyRoom(room);
+    this.broadcastRooms();
+    return FuncRetEnum.OK;
   }
 
   private connectToRoom(username: string, roomname: string): FuncRetEnum {
@@ -255,6 +286,11 @@ export class Lobby {
       case FuncRetEnum.USER_ALREADY_EXISTS: {
         code = 409;
         message = 'User already exists';
+        break;
+      }
+      case FuncRetEnum.USER_NOT_ADMIN: {
+        code = 401;
+        message = 'User not admin';
         break;
       }
       case FuncRetEnum.ROOMNAME_EMPTY: {

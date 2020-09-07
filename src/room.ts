@@ -107,6 +107,10 @@ export class Room {
     return [...this.admins, ...this.estimators];
   }
 
+  isAdmin(user: User): boolean {
+    return this.admins.includes(user);
+  }
+
   private addAdmin(admin: User) {
     this.removeFromArray(admin.getName(), this.disconnectedAdmins);
     if (this.destructionTimeoutID !== undefined) {
@@ -149,10 +153,6 @@ export class Room {
 
   private isDisconnectedAdmin(user: User): boolean {
     return this.disconnectedAdmins.includes(user.getName());
-  }
-
-  private isAdmin(user: User): boolean {
-    return this.admins.includes(user);
   }
 
   private isEmpty() {
