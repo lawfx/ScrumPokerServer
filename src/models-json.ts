@@ -1,6 +1,13 @@
+import { Room } from './room';
+
 /** Messages from server to client */
-export interface RoomsJSON {
+export interface LobbyStatusJSON {
+  lobby_status: LobbyStatusContentJSON;
+}
+
+export interface LobbyStatusContentJSON {
   rooms: string[];
+  left_room_reason: string;
 }
 
 export interface RoomStatusJSON {
@@ -42,4 +49,11 @@ export interface CreateRoomJSONClient {
 export interface ConnectRoomJSONClient {
   username: string;
   roomname: string;
+}
+
+/** Internals models */
+
+export interface RoomDestructionMessage {
+  room: Room;
+  reason: string;
 }

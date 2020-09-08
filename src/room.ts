@@ -4,7 +4,8 @@ import {
   RoomStatusContentJSON,
   RoomStatusUsersJSON,
   RoomStatusTaskJSON,
-  RoomStatusTaskEstimateJSON
+  RoomStatusTaskEstimateJSON,
+  RoomDestructionMessage
 } from './models-json';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
@@ -52,7 +53,10 @@ export class Room {
           `[Room: ${this.name}] Destruction aborted because room will be destroyed immediately`
         );
       }
-      PubSub.publish(DESTROY_ROOM, this);
+      const roomDestructionMessage = {} as RoomDestructionMessage;
+      roomDestructionMessage.room = this;
+      roomDestructionMessage.reason = '';
+      PubSub.publish(DESTROY_ROOM, roomDestructionMessage);
     }
   }
 
@@ -131,10 +135,12 @@ export class Room {
           this.DESTRUCTION_TIMEOUT / 1000
         }s`
       );
-      this.destructionTimeoutID = setTimeout(
-        () => PubSub.publish(DESTROY_ROOM, this),
-        this.DESTRUCTION_TIMEOUT
-      );
+      this.destructionTimeoutID = setTimeout(() => {
+        const roomDestructionMessage = {} as RoomDestructionMessage;
+        roomDestructionMessage.room = this;
+        roomDestructionMessage.reason = 'No admin in room for a minute';
+        PubSub.publish(DESTROY_ROOM, roomDestructionMessage);
+      }, this.DESTRUCTION_TIMEOUT);
     }
   }
 

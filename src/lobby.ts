@@ -3,10 +3,12 @@ import { User } from './user';
 import webSocket from 'ws';
 import { IncomingMessage } from 'http';
 import {
-  RoomsJSON,
   ErrorJSON,
   CreateRoomJSONClient,
-  ConnectRoomJSONClient
+  ConnectRoomJSONClient,
+  LobbyStatusJSON,
+  LobbyStatusContentJSON,
+  RoomDestructionMessage
 } from './models-json';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
@@ -23,10 +25,16 @@ export class Lobby {
     this.setupRoutes();
     // we don't need to delete the users from the room, because they are only referenced in there
     // so when we delete the room they are considered in no room
-    PubSub.subscribe(DESTROY_ROOM, (msg: any, room: Room) => {
-      this.destroyRoom(room);
-      this.broadcastRooms();
-    });
+    PubSub.subscribe(
+      DESTROY_ROOM,
+      (msg: any, roomDestructionMessage: RoomDestructionMessage) => {
+        this.destroyRoom(
+          roomDestructionMessage.room,
+          roomDestructionMessage.reason
+        );
+        this.broadcastLobbyStatus();
+      }
+    );
   }
 
   getRouter(): Router {
@@ -43,7 +51,7 @@ export class Lobby {
     }
     const user = new User(name, ws);
     this.users.push(user);
-    user.sendMessage(this.getRoomsJSON());
+    user.sendMessage(this.getLobbyStatusJSON());
     return FuncRetEnum.OK;
   }
 
@@ -152,12 +160,13 @@ export class Lobby {
     }
     const room = new Room(roomName, user);
     this.rooms.push(room);
-    this.broadcastRooms();
+    this.broadcastLobbyStatus();
     return FuncRetEnum.OK;
   }
 
-  private destroyRoom(room: Room) {
-    console.log(`[${room.getName()}] Destroyed`);
+  private destroyRoom(room: Room, reason: string) {
+    console.log(`[${room.getName()}] Destroyed, reason: ${reason}`);
+    room.getUsers().forEach((u) => u.setLeftRoomReason(reason));
     this.removeFromArray(room, this.rooms);
   }
 
@@ -177,8 +186,10 @@ export class Lobby {
       return FuncRetEnum.USER_NOT_ADMIN;
     }
 
-    this.destroyRoom(room);
-    this.broadcastRooms();
+    //removing the user first so that he won't get the reason for destroying the room too
+    room.removeUser(user);
+    this.destroyRoom(room, 'Destroyed by admin');
+    this.broadcastLobbyStatus();
     return FuncRetEnum.OK;
   }
 
@@ -219,13 +230,15 @@ export class Lobby {
       return FuncRetEnum.NOT_IN_A_ROOM;
     }
     room.removeUser(user);
-    user.sendMessage(this.getRoomsJSON());
+    user.sendMessage(this.getLobbyStatusJSON());
     return FuncRetEnum.OK;
   }
 
-  private broadcastRooms() {
-    console.log('Broadcasting rooms');
-    this.getFreeUsers().forEach((u) => u.sendMessage(this.getRoomsJSON()));
+  private broadcastLobbyStatus() {
+    console.log('Broadcasting lobby status');
+    this.getFreeUsers().forEach((u) =>
+      u.sendMessage(this.getLobbyStatusJSON(u.getLeftRoomReason()))
+    );
   }
 
   private getUserByWS(ws: webSocket): User {
@@ -244,11 +257,16 @@ export class Lobby {
     return this.rooms.find((r) => r.getName() === roomName) !== undefined;
   }
 
-  private getRoomsJSON(): RoomsJSON {
-    const roomsJson = {} as RoomsJSON;
-    roomsJson.rooms = [];
-    this.rooms.forEach((r) => roomsJson.rooms.push(r.getName()));
-    return roomsJson;
+  private getLobbyStatusJSON(left_room_reason: string = ''): LobbyStatusJSON {
+    const lobbyStatusJson = {} as LobbyStatusJSON;
+    const lobbyStatusContentJson = {} as LobbyStatusContentJSON;
+    lobbyStatusJson.lobby_status = lobbyStatusContentJson;
+
+    lobbyStatusContentJson.rooms = [];
+    this.rooms.forEach((r) => lobbyStatusContentJson.rooms.push(r.getName()));
+    lobbyStatusContentJson.left_room_reason = left_room_reason;
+
+    return lobbyStatusJson;
   }
 
   private removeFromArray<T>(obj: T, array: T[]) {
