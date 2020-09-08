@@ -8,7 +8,7 @@ import {
 } from './models-json';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
-import { EstimateRequest } from './estimate-request';
+import { Task } from './task';
 
 export class Room {
   private name: string;
@@ -19,10 +19,10 @@ export class Room {
   private destructionTimeoutID?: NodeJS.Timeout;
   private readonly DESTRUCTION_TIMEOUT: number = 60000;
 
-  private estimateRequest?: EstimateRequest;
+  private task?: Task;
 
   constructor(name: string, admin: User) {
-    console.log(`[${name}] Created by ${admin.getName()}`);
+    console.log(`[Room: ${name}] Created by ${admin.getName()}`);
     this.name = name;
     this.addAdmin(admin);
   }
@@ -49,44 +49,41 @@ export class Room {
         clearTimeout(this.destructionTimeoutID);
         this.destructionTimeoutID = undefined;
         console.log(
-          `[${this.name}] Destruction aborted because room will be destroyed immediately`
+          `[Room: ${this.name}] Destruction aborted because room will be destroyed immediately`
         );
       }
       PubSub.publish(DESTROY_ROOM, this);
     }
   }
 
-  createEstimateRequest(user: User, estimateRequestId: string) {
-    if (estimateRequestId === undefined || estimateRequestId === '') {
-      console.error(`[${this.name}] Task name can't be empty`);
+  createTask(user: User, taskId: string) {
+    if (taskId === undefined || taskId === '') {
+      console.error(`[Room: ${this.name}] Task name can't be empty`);
       return;
     } else if (!this.isAdmin(user)) {
       console.error(
-        `[${
+        `[Room: ${
           this.name
-        }] ${user.getName()} tried to send an estimate request but he isn't an admin.`
+        }] ${user.getName()} tried to send a task estimate request but he isn't an admin.`
       );
       return;
     }
-    this.estimateRequest = new EstimateRequest(estimateRequestId);
-    console.log(`[${this.name}] Estimate request for ${estimateRequestId}`);
+    this.task = new Task(taskId);
+    console.log(`[Room: ${this.name}] Task ${taskId} created`);
     this.broadcastRoomStatus();
   }
 
   addEstimate(user: User, estimate: number) {
-    if (this.estimateRequest === undefined) {
-      console.error(`[${this.name}] There is no estimate request in progress`);
+    if (this.task === undefined) {
+      console.error(`[Room: ${this.name}] There is no task in progress`);
       return;
     }
-    if (this.estimateRequest.addEstimate(user, estimate)) {
+    if (this.task.addEstimate(user, estimate)) {
       this.broadcastRoomStatus();
       if (
-        this.estimateRequest.hasEveryoneEstimated([
-          ...this.admins,
-          ...this.estimators
-        ])
+        this.task.hasEveryoneEstimated([...this.admins, ...this.estimators])
       ) {
-        this.estimateRequest = undefined;
+        this.task = undefined;
       }
     }
   }
@@ -116,21 +113,23 @@ export class Room {
     if (this.destructionTimeoutID !== undefined) {
       clearTimeout(this.destructionTimeoutID);
       this.destructionTimeoutID = undefined;
-      console.log(`[${this.name}] Destruction aborted`);
+      console.log(`[Room: ${this.name}] Destruction aborted`);
     }
     this.admins.push(admin);
-    console.log(`[${this.name}] ${admin.getName()} added as admin`);
+    console.log(`[Room: ${this.name}] ${admin.getName()} added as admin`);
     this.broadcastRoomStatus();
   }
 
   private removeAdmin(admin: User) {
-    console.log(`[${this.name}] Removing admin ${admin.getName()}`);
+    console.log(`[Room: ${this.name}] Removing admin ${admin.getName()}`);
     this.disconnectedAdmins.push(admin.getName());
     this.removeFromArray(admin, this.admins);
     this.broadcastRoomStatus();
     if (this.admins.length === 0) {
       console.log(
-        `[${this.name}] To be destroyed in ${this.DESTRUCTION_TIMEOUT / 1000}s`
+        `[Room: ${this.name}] To be destroyed in ${
+          this.DESTRUCTION_TIMEOUT / 1000
+        }s`
       );
       this.destructionTimeoutID = setTimeout(
         () => PubSub.publish(DESTROY_ROOM, this),
@@ -141,12 +140,16 @@ export class Room {
 
   private addEstimator(estimator: User) {
     this.estimators.push(estimator);
-    console.log(`[${this.name}] ${estimator.getName()} added as estimator`);
+    console.log(
+      `[Room: ${this.name}] ${estimator.getName()} added as estimator`
+    );
     this.broadcastRoomStatus();
   }
 
   private removeEstimator(estimator: User) {
-    console.log(`[${this.name}] Removing estimator ${estimator.getName()}`);
+    console.log(
+      `[Room: ${this.name}] Removing estimator ${estimator.getName()}`
+    );
     this.removeFromArray(estimator, this.estimators);
     this.broadcastRoomStatus();
   }
@@ -160,15 +163,13 @@ export class Room {
   }
 
   private broadcastRoomStatus() {
-    console.log(`[${this.name}] Broadcasting room status`);
+    console.log(`[Room: ${this.name}] Broadcasting room status`);
     const roomStatus = this.getRoomStatusJSON();
     const roomStatusNoEstimates = this.getRoomStatusJSON(false);
     this.admins.forEach((u) => u.sendMessage(roomStatus));
     this.estimators.forEach((u) =>
       u.sendMessage(
-        this.estimateRequest?.hasEstimated(u)
-          ? roomStatus
-          : roomStatusNoEstimates
+        this.task?.hasEstimated(u) ? roomStatus : roomStatusNoEstimates
       )
     );
   }
@@ -189,11 +190,11 @@ export class Room {
       roomStatusUsersJson.estimators.push(u.getName())
     );
 
-    roomStatusTaskJson.id = this.estimateRequest?.getId() ?? '';
+    roomStatusTaskJson.id = this.task?.getId() ?? '';
     roomStatusTaskJson.estimates = [];
 
     if (includeEstimates) {
-      this.estimateRequest?.getEstimates().forEach((e) => {
+      this.task?.getEstimates().forEach((e) => {
         const roomStatusTaskEstimateJson = {} as RoomStatusTaskEstimateJSON;
         roomStatusTaskEstimateJson.name = e.getUser().getName();
         roomStatusTaskEstimateJson.estimate = e.getEstimate();

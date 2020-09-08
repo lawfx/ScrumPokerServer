@@ -1,7 +1,7 @@
 import { Estimate } from './estimate';
 import { User } from './user';
 
-export class EstimateRequest {
+export class Task {
   private id: string;
   private estimates: Estimate[] = [];
 
@@ -11,10 +11,13 @@ export class EstimateRequest {
 
   addEstimate(user: User, estimate: number): boolean {
     if (this.hasEstimated(user)) {
-      console.error(`[${this.id}] ${user.getName()} has already estimated`);
+      console.error(
+        `[Task: ${this.id}] ${user.getName()} has already estimated`
+      );
       return false;
     }
     this.estimates.push(new Estimate(user, estimate));
+    console.log(`[Task: ${this.id}] ${user.getName()} estimated ${estimate}`);
     return true;
   }
 

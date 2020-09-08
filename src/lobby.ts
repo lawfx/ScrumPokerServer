@@ -55,16 +55,16 @@ export class Lobby {
     this.removeFromArray(user, this.users);
   }
 
-  requestEstimate(ws: webSocket, estimateRequestId: string) {
+  requestTaskEstimate(ws: webSocket, taskId: string) {
     const user = this.getUserByWS(ws);
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
       console.error(
-        `${user.getName()} requested estimate but is not in a room`
+        `${user.getName()} requested a task estimate but is not in a room`
       );
       return;
     }
-    room.createEstimateRequest(user, estimateRequestId?.trim());
+    room.createTask(user, taskId?.trim());
   }
 
   addEstimate(ws: webSocket, estimate: number) {
