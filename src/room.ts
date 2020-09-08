@@ -84,11 +84,6 @@ export class Room {
     }
     if (this.task.addEstimate(user, estimate)) {
       this.broadcastRoomStatus();
-      if (
-        this.task.hasEveryoneEstimated([...this.admins, ...this.estimators])
-      ) {
-        this.task = undefined;
-      }
     }
   }
 
