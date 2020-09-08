@@ -2,9 +2,9 @@ import { User } from './user';
 import {
   RoomStatusJSON,
   RoomStatusContentJSON,
-  TaskEstimationContentJSON,
-  TaskEstimationJSON,
-  TaskEstimationContentEstimatesJSON
+  RoomStatusUsersJSON,
+  RoomStatusTaskJSON,
+  RoomStatusTaskEstimateJSON
 } from './models-json';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
@@ -79,7 +79,7 @@ export class Room {
       return;
     }
     if (this.estimateRequest.addEstimate(user, estimate)) {
-      this.broadcastEstimates();
+      this.broadcastRoomStatus();
       if (
         this.estimateRequest.hasEveryoneEstimated([
           ...this.admins,
@@ -161,49 +161,47 @@ export class Room {
 
   private broadcastRoomStatus() {
     console.log(`[${this.name}] Broadcasting room status`);
-    const res = this.getRoomStatusJSON();
-    [...this.admins, ...this.estimators].forEach((u) => u.sendMessage(res));
+    const roomStatus = this.getRoomStatusJSON();
+    const roomStatusNoEstimates = this.getRoomStatusJSON(false);
+    this.admins.forEach((u) => u.sendMessage(roomStatus));
+    this.estimators.forEach((u) =>
+      u.sendMessage(
+        this.estimateRequest?.hasEstimated(u)
+          ? roomStatus
+          : roomStatusNoEstimates
+      )
+    );
   }
 
-  private broadcastEstimates() {
-    console.log(`[${this.name}] Broadcasting estimates`);
-    const res = this.getEstimatesJSON();
-    this.admins.forEach((u) => u.sendMessage(res));
-    this.estimators
-      .filter((u) => this.estimateRequest?.hasEstimated(u))
-      .forEach((u) => u.sendMessage(res));
-  }
-
-  private getRoomStatusJSON(): RoomStatusJSON {
+  private getRoomStatusJSON(includeEstimates: boolean = true): RoomStatusJSON {
     const roomStatusJson = {} as RoomStatusJSON;
     const roomStatusContentJson = {} as RoomStatusContentJSON;
+    const roomStatusUsersJson = {} as RoomStatusUsersJSON;
+    const roomStatusTaskJson = {} as RoomStatusTaskJSON;
     roomStatusJson.room_status = roomStatusContentJson;
-    roomStatusContentJson.admins = [];
-    roomStatusContentJson.users = [];
-    roomStatusContentJson.estimate_request =
-      this.estimateRequest?.getId() ?? '';
-    this.admins.forEach((a) => roomStatusContentJson.admins.push(a.getName()));
-    this.estimators.forEach((u) =>
-      roomStatusContentJson.users.push(u.getName())
-    );
-    return roomStatusJson;
-  }
+    roomStatusContentJson.users = roomStatusUsersJson;
+    roomStatusContentJson.task = roomStatusTaskJson;
 
-  private getEstimatesJSON(): TaskEstimationJSON {
-    const taskEstimationJson = {} as TaskEstimationJSON;
-    const taskEstimationContentJson = {} as TaskEstimationContentJSON;
-    taskEstimationJson.task_estimation = taskEstimationContentJson;
-    taskEstimationContentJson.task = this.estimateRequest!.getId();
-    taskEstimationContentJson.estimates = [];
-    this.estimateRequest?.getEstimates().forEach((e) => {
-      const taskEstimationContentEstimatesJSON = {} as TaskEstimationContentEstimatesJSON;
-      taskEstimationContentEstimatesJSON.name = e.getUser().getName();
-      taskEstimationContentEstimatesJSON.estimate = e.getEstimate();
-      taskEstimationContentJson.estimates.push(
-        taskEstimationContentEstimatesJSON
-      );
-    });
-    return taskEstimationJson;
+    roomStatusUsersJson.admins = [];
+    roomStatusUsersJson.estimators = [];
+    this.admins.forEach((a) => roomStatusUsersJson.admins.push(a.getName()));
+    this.estimators.forEach((u) =>
+      roomStatusUsersJson.estimators.push(u.getName())
+    );
+
+    roomStatusTaskJson.id = this.estimateRequest?.getId() ?? '';
+    roomStatusTaskJson.estimates = [];
+
+    if (includeEstimates) {
+      this.estimateRequest?.getEstimates().forEach((e) => {
+        const roomStatusTaskEstimateJson = {} as RoomStatusTaskEstimateJSON;
+        roomStatusTaskEstimateJson.name = e.getUser().getName();
+        roomStatusTaskEstimateJson.estimate = e.getEstimate();
+        roomStatusTaskJson.estimates.push(roomStatusTaskEstimateJson);
+      });
+    }
+
+    return roomStatusJson;
   }
 
   private removeFromArray<T>(obj: T, array: T[]) {

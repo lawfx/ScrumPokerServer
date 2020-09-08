@@ -8,21 +8,21 @@ export interface RoomStatusJSON {
 }
 
 export interface RoomStatusContentJSON {
+  users: RoomStatusUsersJSON;
+  task: RoomStatusTaskJSON;
+}
+
+export interface RoomStatusUsersJSON {
   admins: string[];
-  users: string[];
-  estimate_request: string;
+  estimators: string[];
 }
 
-export interface TaskEstimationJSON {
-  task_estimation: TaskEstimationContentJSON;
+export interface RoomStatusTaskJSON {
+  id: string;
+  estimates: RoomStatusTaskEstimateJSON[];
 }
 
-export interface TaskEstimationContentJSON {
-  task: string;
-  estimates: TaskEstimationContentEstimatesJSON[];
-}
-
-export interface TaskEstimationContentEstimatesJSON {
+export interface RoomStatusTaskEstimateJSON {
   name: string;
   estimate: number;
 }
