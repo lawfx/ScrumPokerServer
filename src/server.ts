@@ -2,7 +2,6 @@ import webSocket, { Data } from 'ws';
 import { Lobby } from './lobby';
 import express from 'express';
 import bodyParser from 'body-parser';
-import { CreateRoomJSONClient } from './models-json';
 import { FuncRetEnum } from './enums';
 
 const app = express();
@@ -20,6 +19,8 @@ const server = app.listen(port, () => console.log(`Listening in ${port}`));
 const wss = new webSocket.Server({ server });
 
 wss.on('connection', (ws, req) => {
+  (ws as any).isAlive = true;
+  ws.on('pong', () => heartbeat(ws));
   // if (req.headers.username === undefined) {
   //   ws.close();
   // }
@@ -41,10 +42,15 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', (code, reason) => {
+    console.log(`${code} ${reason}`);
     if (code !== 4001) {
       lobby.destroyUser(ws);
     }
   });
+});
+
+wss.on('close', function close() {
+  clearInterval(pingInterval);
 });
 
 function processMessage(ws: webSocket, msg: Data) {
@@ -62,3 +68,19 @@ function processMessage(ws: webSocket, msg: Data) {
     return;
   }
 }
+
+function heartbeat(ws: webSocket) {
+  (ws as any).isAlive = true;
+}
+
+const pingInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if ((ws as any).isAlive === false) {
+      ws.close(4002, 'No pong');
+      return;
+    }
+
+    (ws as any).isAlive = false;
+    ws.ping(() => {});
+  });
+}, 10000);
