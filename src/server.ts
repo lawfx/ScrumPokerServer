@@ -75,7 +75,7 @@ function heartbeat(ws: webSocket) {
 
 const pingInterval = setInterval(() => {
   wss.clients.forEach((ws) => {
-    if ((ws as any).isAlive === false) {
+    if (!(ws as any).isAlive) {
       ws.close(4002, 'No pong');
       return;
     }
