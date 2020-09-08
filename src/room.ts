@@ -6,7 +6,7 @@ import {
   RoomStatusTaskJSON,
   RoomStatusTaskEstimateJSON,
   RoomDestructionMessage
-} from './models-json';
+} from './models';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
 import { Task } from './task';

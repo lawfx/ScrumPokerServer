@@ -9,7 +9,7 @@ import {
   LobbyStatusJSON,
   LobbyStatusContentJSON,
   RoomDestructionMessage
-} from './models-json';
+} from './models';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
 import { Router, Response } from 'express';
