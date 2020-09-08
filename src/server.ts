@@ -2,7 +2,7 @@ import webSocket, { Data } from 'ws';
 import { Lobby } from './lobby';
 import express from 'express';
 import bodyParser from 'body-parser';
-import { CreateRoomJSONClient } from './messages';
+import { CreateRoomJSONClient } from './models-json';
 import { FuncRetEnum } from './enums';
 
 const app = express();

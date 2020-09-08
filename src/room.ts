@@ -5,7 +5,7 @@ import {
   TaskEstimationContentJSON,
   TaskEstimationJSON,
   TaskEstimationContentEstimatesJSON
-} from './messages';
+} from './models-json';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
 import { EstimateRequest } from './estimate-request';

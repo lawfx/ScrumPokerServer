@@ -7,7 +7,7 @@ import {
   ErrorJSON,
   CreateRoomJSONClient,
   ConnectRoomJSONClient
-} from './messages';
+} from './models-json';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
 import { Router, Response } from 'express';
