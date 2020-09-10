@@ -46,6 +46,8 @@ export class Lobby {
     const name = this.getQueryVariable(req.url!, 'name');
     if (name === undefined || name.length === 0) {
       return FuncRetEnum.USERNAME_EMPTY;
+    } else if (name.length > 20) {
+      return FuncRetEnum.USERNAME_TOO_LONG;
     } else if (this.getUserByName(name) !== undefined) {
       return FuncRetEnum.USER_ALREADY_EXISTS;
     }
@@ -151,10 +153,12 @@ export class Lobby {
     const user = this.getUserByName(username);
     if (user === undefined) {
       return FuncRetEnum.USER_NOT_EXISTS;
-    } else if (roomName === '') {
+    } else if (roomName.length === 0) {
       return FuncRetEnum.ROOMNAME_EMPTY;
     } else if (this.roomExists(roomName)) {
       return FuncRetEnum.ROOM_ALREADY_EXISTS;
+    } else if (roomName.length > 20) {
+      return FuncRetEnum.ROOMNAME_TOO_LONG;
     } else if (user.getRoom(this.rooms) !== undefined) {
       return FuncRetEnum.ALREADY_IN_A_ROOM;
     }
@@ -314,6 +318,11 @@ export class Lobby {
       case FuncRetEnum.ROOMNAME_EMPTY: {
         code = 400;
         message = 'Room name is empty';
+        break;
+      }
+      case FuncRetEnum.ROOMNAME_TOO_LONG: {
+        code = 403;
+        message = 'Room name length exceeds 20 characters';
         break;
       }
       case FuncRetEnum.ROOM_NOT_EXISTS: {

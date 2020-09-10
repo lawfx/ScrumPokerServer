@@ -31,6 +31,8 @@ wss.on('connection', (ws, req) => {
       4001,
       result === FuncRetEnum.USERNAME_EMPTY
         ? 'Username is empty'
+        : result === FuncRetEnum.USERNAME_TOO_LONG
+        ? "Username can't exceed 20 characters"
         : result === FuncRetEnum.USER_ALREADY_EXISTS
         ? 'User already exists'
         : 'Unknown error'

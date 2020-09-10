@@ -61,8 +61,13 @@ export class Room {
   }
 
   createTask(user: User, taskId: string) {
-    if (taskId === undefined || taskId === '') {
+    if (taskId === undefined || taskId.length === 0) {
       console.error(`[Room: ${this.name}] Task name can't be empty`);
+      return;
+    } else if (taskId.length > 20) {
+      console.error(
+        `[Room: ${this.name}] Task name can't exceed 20 characters`
+      );
       return;
     } else if (!this.isAdmin(user)) {
       console.error(
