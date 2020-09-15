@@ -6,7 +6,7 @@ import { FuncRetEnum } from './enums';
 
 const app = express();
 app.use(bodyParser.json());
-const port = 8080; // default port to listen
+const port = process.env.PORT || 8080; // default port to listen
 
 const lobby = new Lobby();
 
