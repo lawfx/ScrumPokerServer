@@ -9,16 +9,17 @@ export class Task {
     this.id = id;
   }
 
-  addEstimate(user: User, estimate: number): boolean {
+  addEstimate(user: User, estimate: number): Estimate | undefined {
     if (this.hasEstimated(user)) {
       console.error(
         `[Task: ${this.id}] ${user.getName()} has already estimated`
       );
-      return false;
+      return;
     }
-    this.estimates.push(new Estimate(user, estimate));
+    const est = new Estimate(user, estimate);
+    this.estimates.push(est);
     console.log(`[Task: ${this.id}] ${user.getName()} estimated ${estimate}`);
-    return true;
+    return est;
   }
 
   hasEveryoneEstimated(users: User[]): boolean {

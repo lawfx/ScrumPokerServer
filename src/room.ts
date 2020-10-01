@@ -10,6 +10,7 @@ import {
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
 import { Task } from './task';
+import { Estimate } from './estimate';
 
 export class Room {
   private name: string;
@@ -60,7 +61,7 @@ export class Room {
     }
   }
 
-  createTask(user: User, taskId: string) {
+  createTask(user: User, taskId: string): Task | undefined {
     if (taskId === undefined || taskId.length === 0) {
       console.error(`[Room: ${this.name}] Task name can't be empty`);
       return;
@@ -80,16 +81,7 @@ export class Room {
     this.task = new Task(taskId);
     console.log(`[Room: ${this.name}] Task ${taskId} created`);
     this.broadcastRoomStatus();
-  }
-
-  addEstimate(user: User, estimate: number) {
-    if (this.task === undefined) {
-      console.error(`[Room: ${this.name}] There is no task in progress`);
-      return;
-    }
-    if (this.task.addEstimate(user, estimate)) {
-      this.broadcastRoomStatus();
-    }
+    return this.task;
   }
 
   getAdmins() {
@@ -110,6 +102,22 @@ export class Room {
 
   isAdmin(user: User): boolean {
     return this.admins.includes(user);
+  }
+
+  getCurrentTask(): Task | undefined {
+    return this.task;
+  }
+
+  broadcastRoomStatus() {
+    console.log(`[Room: ${this.name}] Broadcasting room status`);
+    const roomStatus = this.getRoomStatusJSON();
+    const roomStatusNoEstimates = this.getRoomStatusJSON(false);
+    this.admins.forEach((u) => u.sendMessage(roomStatus));
+    this.estimators.forEach((u) =>
+      u.sendMessage(
+        this.task?.hasEstimated(u) ? roomStatus : roomStatusNoEstimates
+      )
+    );
   }
 
   private addAdmin(admin: User) {
@@ -166,18 +174,6 @@ export class Room {
 
   private isEmpty() {
     return this.admins.length === 0 && this.estimators.length === 0;
-  }
-
-  private broadcastRoomStatus() {
-    console.log(`[Room: ${this.name}] Broadcasting room status`);
-    const roomStatus = this.getRoomStatusJSON();
-    const roomStatusNoEstimates = this.getRoomStatusJSON(false);
-    this.admins.forEach((u) => u.sendMessage(roomStatus));
-    this.estimators.forEach((u) =>
-      u.sendMessage(
-        this.task?.hasEstimated(u) ? roomStatus : roomStatusNoEstimates
-      )
-    );
   }
 
   private getRoomStatusJSON(includeEstimates: boolean = true): RoomStatusJSON {

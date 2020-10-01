@@ -3,17 +3,20 @@ import { Room } from './room';
 
 export class User {
   private name: string;
-  private ws: webSocket;
+  private ws?: webSocket;
   private left_room_reason: string;
 
-  constructor(name: string, ws: webSocket) {
+  constructor(name: string) {
     this.name = name;
-    this.ws = ws;
     this.left_room_reason = '';
     console.log(`New user created: ${this.name}`);
   }
 
-  getWs(): webSocket {
+  setWs(ws: webSocket) {
+    this.ws = ws;
+  }
+
+  getWs(): webSocket | undefined {
     return this.ws;
   }
 
@@ -36,6 +39,6 @@ export class User {
   }
 
   sendMessage(message: any) {
-    this.ws.send(JSON.stringify(message));
+    this.ws?.send(JSON.stringify(message));
   }
 }

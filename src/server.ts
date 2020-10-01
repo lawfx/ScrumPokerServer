@@ -2,58 +2,94 @@ import webSocket, { Data } from 'ws';
 import { Lobby } from './lobby';
 import express from 'express';
 import bodyParser from 'body-parser';
-import { FuncRetEnum } from './enums';
+import { ResponseEnum } from './enums';
+import { Server } from 'http';
 
-const app = express();
-app.use(bodyParser.json());
-const port = process.env.PORT || 8080; // default port to listen
+const port = 8080; // default port to listen
+let server: Server;
+let lobby: Lobby;
 
-const lobby = new Lobby();
+if (require.main === module) {
+  console.log('called directly');
+  lobby = new Lobby();
+  server = setupHttpServer(port, lobby);
+  setupWebSocketServer(server, lobby);
+} else {
+  console.log('required as a module');
+}
 
-app.use('/', lobby.getRouter());
+export function setupHttpServer(port: number, lobby: Lobby): Server {
+  const app = express();
+  app.use(bodyParser.json());
 
-app.get('/', (req, res) => res.send('Scrum poker server running!'));
+  app.use('/', lobby.getRouter());
 
-const server = app.listen(port, () => console.log(`Listening in ${port}`));
+  app.get('/', (req, res) => res.send('Scrum poker server running!'));
 
-const wss = new webSocket.Server({ server });
+  const server = app.listen(port, () => console.log(`Listening in ${port}`));
+  return server;
+}
+export function setupWebSocketServer(
+  server: Server,
+  lobby: Lobby
+): webSocket.Server {
+  const wss = new webSocket.Server({ server });
 
-wss.on('connection', (ws, req) => {
-  (ws as any).isAlive = true;
-  ws.on('pong', () => heartbeat(ws));
-  // if (req.headers.username === undefined) {
-  //   ws.close();
-  // }
+  wss.on('connection', (ws, req) => {
+    (ws as any).isAlive = true;
+    ws.on('pong', () => heartbeat(ws));
+    // if (req.headers.username === undefined) {
+    //   ws.close();
+    // }
 
-  const result = lobby.createUser(ws, req);
-  if (result !== FuncRetEnum.OK) {
-    ws.close(
-      4001,
-      result === FuncRetEnum.USERNAME_EMPTY
-        ? 'Username is empty'
-        : result === FuncRetEnum.USERNAME_TOO_LONG
-        ? "Username can't exceed 20 characters"
-        : result === FuncRetEnum.USER_ALREADY_EXISTS
-        ? 'User already exists'
-        : 'Unknown error'
-    );
+    const result = lobby.onNewConnection(ws, req);
+    if (result !== ResponseEnum.OK) {
+      ws.close(
+        4001,
+        result === ResponseEnum.USERNAME_EMPTY
+          ? 'Username is empty'
+          : result === ResponseEnum.USERNAME_TOO_LONG
+          ? "Username can't exceed 20 characters"
+          : result === ResponseEnum.USER_ALREADY_EXISTS
+          ? 'User already exists'
+          : 'Unknown error'
+      );
+    }
+
+    ws.on('message', (message) => {
+      processMessage(ws, message);
+    });
+
+    ws.on('close', (code, reason) => {
+      console.log(`${code} ${reason}`);
+      if (code !== 4001) {
+        lobby.onCloseConnection(ws);
+      }
+    });
+  });
+
+  wss.on('close', function close() {
+    clearInterval(pingInterval);
+  });
+
+  function heartbeat(ws: webSocket) {
+    (ws as any).isAlive = true;
   }
 
-  ws.on('message', (message) => {
-    processMessage(ws, message);
-  });
+  const pingInterval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (!(ws as any).isAlive) {
+        ws.close(4002, 'No pong');
+        return;
+      }
 
-  ws.on('close', (code, reason) => {
-    console.log(`${code} ${reason}`);
-    if (code !== 4001) {
-      lobby.destroyUser(ws);
-    }
-  });
-});
+      (ws as any).isAlive = false;
+      ws.ping(() => {});
+    });
+  }, 10000);
 
-wss.on('close', function close() {
-  clearInterval(pingInterval);
-});
+  return wss;
+}
 
 function processMessage(ws: webSocket, msg: Data) {
   if (typeof msg !== 'string') return;
@@ -61,28 +97,12 @@ function processMessage(ws: webSocket, msg: Data) {
   try {
     const msgJSON = JSON.parse(msg);
     if (msgJSON.request_estimate !== undefined) {
-      lobby.requestTaskEstimate(ws, msgJSON.request_estimate);
+      lobby.onNewEstimateRequest(ws, msgJSON.request_estimate);
     } else if (msgJSON.estimate !== undefined) {
-      lobby.addEstimate(ws, msgJSON.estimate);
+      lobby.onNewEstimate(ws, msgJSON.estimate);
     }
   } catch (e) {
     console.error('Got invalid JSON message, ignoring...');
     return;
   }
 }
-
-function heartbeat(ws: webSocket) {
-  (ws as any).isAlive = true;
-}
-
-const pingInterval = setInterval(() => {
-  wss.clients.forEach((ws) => {
-    if (!(ws as any).isAlive) {
-      ws.close(4002, 'No pong');
-      return;
-    }
-
-    (ws as any).isAlive = false;
-    ws.ping(() => {});
-  });
-}, 10000);

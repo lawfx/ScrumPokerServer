@@ -13,7 +13,7 @@ import {
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
 import { Router, Response } from 'express';
-import { FuncRetEnum } from './enums';
+import { ResponseEnum } from './enums';
 
 export class Lobby {
   private rooms: Room[] = [];
@@ -41,32 +41,27 @@ export class Lobby {
     return this.router;
   }
 
-  createUser(ws: webSocket, req: IncomingMessage): FuncRetEnum {
+  onNewConnection(ws: webSocket, req: IncomingMessage): ResponseEnum {
     //TODO use req to get name from headers
     const name = this.getQueryVariable(req.url!, 'name');
-    if (name === undefined || name.length === 0) {
-      return FuncRetEnum.USERNAME_EMPTY;
-    } else if (name.length > 20) {
-      return FuncRetEnum.USERNAME_TOO_LONG;
-    } else if (this.getUserByName(name) !== undefined) {
-      return FuncRetEnum.USER_ALREADY_EXISTS;
+    const user = this.createUser(name);
+    if (user instanceof User) {
+      user.setWs(ws);
+      user.sendMessage(this.getLobbyStatusJSON());
+      return ResponseEnum.OK;
     }
-    const user = new User(name, ws);
-    this.users.push(user);
-    user.sendMessage(this.getLobbyStatusJSON());
-    return FuncRetEnum.OK;
+    return user;
   }
 
-  destroyUser(ws: webSocket) {
+  onCloseConnection(ws: webSocket) {
     const user = this.getUserByWS(ws);
-    console.log(`Removing user ${user.getName()}`);
-    const room = user.getRoom(this.rooms);
-    room?.removeUser(user);
-    this.removeFromArray(user, this.users);
+    if (user === undefined) return;
+    this.destroyUser(user);
   }
 
-  requestTaskEstimate(ws: webSocket, taskId: string) {
+  onNewEstimateRequest(ws: webSocket, taskId: string) {
     const user = this.getUserByWS(ws);
+    if (user === undefined) return;
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
       console.error(
@@ -77,8 +72,9 @@ export class Lobby {
     room.createTask(user, taskId?.trim());
   }
 
-  addEstimate(ws: webSocket, estimate: number) {
+  onNewEstimate(ws: webSocket, estimate: number) {
     const user = this.getUserByWS(ws);
+    if (user === undefined) return;
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
       console.error(`${user.getName()} sent an estimate but is not in a room`);
@@ -87,7 +83,17 @@ export class Lobby {
       console.error(`${user.getName()} sent invalid estimate`);
       return;
     }
-    room.addEstimate(user, estimate);
+    const est = room.getCurrentTask()?.addEstimate(user, estimate);
+    if (est === undefined) return;
+    room.broadcastRoomStatus();
+  }
+
+  getRooms(): Room[] {
+    return this.rooms;
+  }
+
+  getUsers(): User[] {
+    return this.users;
   }
 
   private setupRoutes() {
@@ -97,8 +103,8 @@ export class Lobby {
         msg.username?.trim(),
         msg.roomname?.trim()
       );
-      if (result === FuncRetEnum.OK) {
-        res.status(201).send(this.createResponseREST('Room created'));
+      if (result === ResponseEnum.OK) {
+        res.status(201).json(this.createResponseREST('Room created'));
       } else {
         this.processResult(result, res);
       }
@@ -110,10 +116,10 @@ export class Lobby {
         msg.username?.trim(),
         msg.roomname?.trim()
       );
-      if (result === FuncRetEnum.OK) {
+      if (result === ResponseEnum.OK) {
         res
           .status(200)
-          .send(this.createResponseREST(`Connected to ${msg.roomname}`));
+          .json(this.createResponseREST(`Connected to ${msg.roomname}`));
       } else {
         this.processResult(result, res);
       }
@@ -122,8 +128,8 @@ export class Lobby {
     this.router.patch('/rooms/disconnect', (req, res) => {
       const username = req.body.username;
       const result = this.disconnectFromRoom(username?.trim());
-      if (result === FuncRetEnum.OK) {
-        res.status(200).send(this.createResponseREST(`Disconnected from room`));
+      if (result === ResponseEnum.OK) {
+        res.status(200).json(this.createResponseREST(`Disconnected from room`));
       } else {
         this.processResult(result, res);
       }
@@ -132,40 +138,60 @@ export class Lobby {
     this.router.delete('/rooms/destroy', (req, res) => {
       const username = req.body.username;
       const result = this.destroyRoomOrderedByUser(username?.trim());
-      if (result === FuncRetEnum.OK) {
-        res.status(200).send(this.createResponseREST(`Room destroyed`));
+      if (result === ResponseEnum.OK) {
+        res.status(200).json(this.createResponseREST(`Room destroyed`));
       } else {
         this.processResult(result, res);
       }
     });
   }
 
-  private createRoom(username: string, roomName: string): FuncRetEnum {
+  private createUser(name?: string): User | ResponseEnum {
+    if (name === undefined || name.length === 0) {
+      return ResponseEnum.USERNAME_EMPTY;
+    } else if (name.length > 20) {
+      return ResponseEnum.USERNAME_TOO_LONG;
+    } else if (this.getUserByName(name) !== undefined) {
+      return ResponseEnum.USER_ALREADY_EXISTS;
+    }
+    const user = new User(name);
+    this.users.push(user);
+    return user;
+  }
+
+  private destroyUser(user: User) {
+    console.log(`Destroying user ${user.getName()}`);
+    const room = user.getRoom(this.rooms);
+    room?.removeUser(user);
+    this.removeFromArray(user, this.users);
+  }
+
+  private createRoom(username: string, roomName: string): ResponseEnum {
     if (
       username === undefined ||
       username === null ||
       roomName === undefined ||
       roomName === null
     ) {
-      return FuncRetEnum.MALFORMED_REQUEST;
+      return ResponseEnum.MALFORMED_REQUEST;
     }
 
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return FuncRetEnum.USER_NOT_EXISTS;
+      return ResponseEnum.USER_NOT_EXISTS;
     } else if (roomName.length === 0) {
-      return FuncRetEnum.ROOMNAME_EMPTY;
+      return ResponseEnum.ROOMNAME_EMPTY;
     } else if (this.roomExists(roomName)) {
-      return FuncRetEnum.ROOM_ALREADY_EXISTS;
+      return ResponseEnum.ROOM_ALREADY_EXISTS;
     } else if (roomName.length > 20) {
-      return FuncRetEnum.ROOMNAME_TOO_LONG;
+      return ResponseEnum.ROOMNAME_TOO_LONG;
     } else if (user.getRoom(this.rooms) !== undefined) {
-      return FuncRetEnum.ALREADY_IN_A_ROOM;
+      return ResponseEnum.ALREADY_IN_A_ROOM;
     }
     const room = new Room(roomName, user);
     this.rooms.push(room);
     this.broadcastLobbyStatus();
-    return FuncRetEnum.OK;
+    return ResponseEnum.OK;
   }
 
   private destroyRoom(room: Room, reason: string) {
@@ -174,68 +200,68 @@ export class Lobby {
     this.removeFromArray(room, this.rooms);
   }
 
-  private destroyRoomOrderedByUser(username: string): FuncRetEnum {
+  private destroyRoomOrderedByUser(username: string): ResponseEnum {
     if (username === undefined || username === null) {
-      return FuncRetEnum.MALFORMED_REQUEST;
+      return ResponseEnum.MALFORMED_REQUEST;
     }
 
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return FuncRetEnum.USER_NOT_EXISTS;
+      return ResponseEnum.USER_NOT_EXISTS;
     }
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
-      return FuncRetEnum.NOT_IN_A_ROOM;
+      return ResponseEnum.NOT_IN_A_ROOM;
     } else if (!room.isAdmin(user)) {
-      return FuncRetEnum.USER_NOT_ADMIN;
+      return ResponseEnum.USER_NOT_ADMIN;
     }
 
     //removing the user first so that he won't get the reason for destroying the room too
     room.removeUser(user);
     this.destroyRoom(room, 'Destroyed by admin');
     this.broadcastLobbyStatus();
-    return FuncRetEnum.OK;
+    return ResponseEnum.OK;
   }
 
-  private connectToRoom(username: string, roomname: string): FuncRetEnum {
+  private connectToRoom(username: string, roomname: string): ResponseEnum {
     if (
       username === undefined ||
       username === null ||
       roomname === undefined ||
       roomname === null
     ) {
-      return FuncRetEnum.MALFORMED_REQUEST;
+      return ResponseEnum.MALFORMED_REQUEST;
     }
 
     const room = this.rooms.find((r) => r.getName() === roomname);
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return FuncRetEnum.USER_NOT_EXISTS;
+      return ResponseEnum.USER_NOT_EXISTS;
     } else if (room === undefined) {
-      return FuncRetEnum.ROOM_NOT_EXISTS;
+      return ResponseEnum.ROOM_NOT_EXISTS;
     } else if (user.getRoom(this.rooms) !== undefined) {
-      return FuncRetEnum.ALREADY_IN_A_ROOM;
+      return ResponseEnum.ALREADY_IN_A_ROOM;
     }
     room.addUser(user);
-    return FuncRetEnum.OK;
+    return ResponseEnum.OK;
   }
 
-  private disconnectFromRoom(username: string): FuncRetEnum {
+  private disconnectFromRoom(username: string): ResponseEnum {
     if (username === undefined || username === null) {
-      return FuncRetEnum.MALFORMED_REQUEST;
+      return ResponseEnum.MALFORMED_REQUEST;
     }
 
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return FuncRetEnum.USER_NOT_EXISTS;
+      return ResponseEnum.USER_NOT_EXISTS;
     }
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
-      return FuncRetEnum.NOT_IN_A_ROOM;
+      return ResponseEnum.NOT_IN_A_ROOM;
     }
     room.removeUser(user);
     user.sendMessage(this.getLobbyStatusJSON());
-    return FuncRetEnum.OK;
+    return ResponseEnum.OK;
   }
 
   private broadcastLobbyStatus() {
@@ -245,8 +271,8 @@ export class Lobby {
     );
   }
 
-  private getUserByWS(ws: webSocket): User {
-    return this.users.find((u) => u.getWs() === ws)!;
+  private getUserByWS(ws: webSocket): User | undefined {
+    return this.users.find((u) => u.getWs() === ws);
   }
 
   private getUserByName(name: string): User | undefined {
@@ -287,65 +313,65 @@ export class Lobby {
     return error;
   }
 
-  private createResponseREST(msg: string): string {
-    return JSON.stringify({ message: msg });
+  private createResponseREST(msg: string) {
+    return { message: msg };
   }
 
-  private processResult(result: FuncRetEnum, res: Response) {
+  private processResult(result: ResponseEnum, res: Response) {
     let code: number;
     let message: string;
     switch (result) {
-      case FuncRetEnum.USERNAME_EMPTY: {
+      case ResponseEnum.USERNAME_EMPTY: {
         code = 400;
         message = 'Username is empty';
         break;
       }
-      case FuncRetEnum.USER_NOT_EXISTS: {
+      case ResponseEnum.USER_NOT_EXISTS: {
         code = 404;
         message = 'User not found';
         break;
       }
-      case FuncRetEnum.USER_ALREADY_EXISTS: {
+      case ResponseEnum.USER_ALREADY_EXISTS: {
         code = 409;
         message = 'User already exists';
         break;
       }
-      case FuncRetEnum.USER_NOT_ADMIN: {
+      case ResponseEnum.USER_NOT_ADMIN: {
         code = 401;
         message = 'User not admin';
         break;
       }
-      case FuncRetEnum.ROOMNAME_EMPTY: {
+      case ResponseEnum.ROOMNAME_EMPTY: {
         code = 400;
         message = 'Room name is empty';
         break;
       }
-      case FuncRetEnum.ROOMNAME_TOO_LONG: {
+      case ResponseEnum.ROOMNAME_TOO_LONG: {
         code = 403;
         message = 'Room name length exceeds 20 characters';
         break;
       }
-      case FuncRetEnum.ROOM_NOT_EXISTS: {
+      case ResponseEnum.ROOM_NOT_EXISTS: {
         code = 404;
         message = 'Room not found';
         break;
       }
-      case FuncRetEnum.ROOM_ALREADY_EXISTS: {
+      case ResponseEnum.ROOM_ALREADY_EXISTS: {
         code = 409;
         message = 'Room already exists';
         break;
       }
-      case FuncRetEnum.ALREADY_IN_A_ROOM: {
+      case ResponseEnum.ALREADY_IN_A_ROOM: {
         code = 409;
         message = 'Already in a room';
         break;
       }
-      case FuncRetEnum.NOT_IN_A_ROOM: {
+      case ResponseEnum.NOT_IN_A_ROOM: {
         code = 404;
         message = 'Not in a room';
         break;
       }
-      case FuncRetEnum.MALFORMED_REQUEST: {
+      case ResponseEnum.MALFORMED_REQUEST: {
         code = 400;
         message = 'Malformed request';
         break;
@@ -357,7 +383,7 @@ export class Lobby {
         break;
       }
     }
-    res.status(code).send(this.createResponseREST(message));
+    res.status(code).json(this.createResponseREST(message));
   }
 
   private getQueryVariable(url: string, variable: string): string | undefined {

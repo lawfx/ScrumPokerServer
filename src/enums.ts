@@ -1,4 +1,4 @@
-export enum FuncRetEnum {
+export enum ResponseEnum {
   USERNAME_EMPTY,
   USERNAME_TOO_LONG,
   USER_NOT_EXISTS,
