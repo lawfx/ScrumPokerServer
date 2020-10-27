@@ -5,7 +5,7 @@ import { User } from '../user';
 import webSocket from 'ws';
 import { Lobby } from '../lobby';
 import { Server } from 'http';
-import { setupHttpServer, setupWebSocketServer } from '../server';
+// import { setupHttpServer, setupWebSocketServer } from '../server';
 
 // let lobby: Lobby;
 // let server: Server;

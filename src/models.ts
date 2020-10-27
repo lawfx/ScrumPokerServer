@@ -57,3 +57,8 @@ export interface RoomDestructionMessage {
   room: Room;
   reason: string;
 }
+
+export interface Hash {
+  hashedPassword: string;
+  salt: string;
+}

@@ -28,11 +28,14 @@ export class Lobby {
     PubSub.subscribe(
       DESTROY_ROOM,
       (msg: any, roomDestructionMessage: RoomDestructionMessage) => {
-        this.destroyRoom(
-          roomDestructionMessage.room,
-          roomDestructionMessage.reason
-        );
-        this.broadcastLobbyStatus();
+        if (
+          this.destroyRoom(
+            roomDestructionMessage.room,
+            roomDestructionMessage.reason
+          )
+        ) {
+          this.broadcastLobbyStatus();
+        }
       }
     );
   }
@@ -194,10 +197,18 @@ export class Lobby {
     return ResponseEnum.OK;
   }
 
-  private destroyRoom(room: Room, reason: string) {
+  private destroyRoom(room: Room, reason: string): boolean {
+    if (!this.roomExists(room.getName())) {
+      // console.log(`[${room.getName()}] Room already destroyed`);
+      return false;
+    }
     console.log(`[${room.getName()}] Destroyed, reason: ${reason}`);
-    room.getUsers().forEach((u) => u.setLeftRoomReason(reason));
+    room.getUsers().forEach((u) => {
+      u.setLeftRoomReason(reason);
+      room.removeUser(u);
+    });
     this.removeFromArray(room, this.rooms);
+    return true;
   }
 
   private destroyRoomOrderedByUser(username: string): ResponseEnum {
