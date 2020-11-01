@@ -1,58 +1,19 @@
 import webSocket, { Data } from 'ws';
 import { Lobby } from './lobby';
-import express, { NextFunction, Response } from 'express';
+import express from 'express';
 import bodyParser from 'body-parser';
 import { ResponseEnum } from './enums';
-import { IncomingMessage } from 'http';
-// import { dbConfig } from './database';
-import jwt from 'jsonwebtoken';
-// import { Hasher } from './hasher';
-// import { Hash } from './models';
-import * as config from './config.json';
+import { Authentication } from './authentication';
 
 const port = 8080; // default port to listen
 const lobby = new Lobby();
-// const hasher = new Hasher();
-// console.log(hasher.hash('yolo').hashedPassword.length);
-// console.log(hasher.hash('nikos').hashedPassword.length);
+const auth = new Authentication();
 
-// console.log(config.secretKey);
-// console.log(compare());
-
-// dbConfig
-//   .authenticate()
-//   .then(() => console.log('Database authenticated'))
-//   .catch((err) => console.error(err));
 const app = express();
 app.use(bodyParser.json());
 
 app.use('/', lobby.getRouter());
-
-app.post('/login', (req, res) => {
-  const user = {
-    username: req.body.username
-  };
-  jwt.sign(user, config.secretKey, (err: any, token: any) => {
-    console.log(token);
-    res.json({ token: token });
-  });
-});
-
-app.post('/api/test', verifyToken, (req, res) => {
-  jwt.verify(
-    (req as any).token,
-    config.secretKey,
-    (err: any, authData: any) => {
-      if (err) {
-        res.sendStatus(403);
-        return;
-      }
-
-      console.log(authData);
-      res.send('test success');
-    }
-  );
-});
+app.use('/', auth.getRouter());
 
 app.get('/*', (req, res) => res.send('Scrum poker server running!'));
 
@@ -112,18 +73,6 @@ const pingInterval = setInterval(() => {
   });
 }, 10000);
 
-function verifyToken(req: IncomingMessage, res: Response, next: NextFunction) {
-  const bearerHeader = req.headers['authorization'];
-  if (bearerHeader !== undefined) {
-    const bearer = bearerHeader.split(' ');
-    const bearerToken = bearer[1];
-    (req as any).token = bearerToken;
-    next();
-  } else {
-    res.sendStatus(403);
-  }
-}
-
 function processMessage(ws: webSocket, msg: Data) {
   if (typeof msg !== 'string') return;
 
@@ -139,14 +88,3 @@ function processMessage(ws: webSocket, msg: Data) {
     return;
   }
 }
-
-// function compare(password: string, hash: Hash) {
-//   if (password === undefined || password === null || password === '') {
-//     return false;
-//   }
-//   let passwordData = hasher.hash(password, hash.salt);
-//   if (passwordData.hashedPassword === hash.hashedPassword) {
-//     return true;
-//   }
-//   return false;
-// }

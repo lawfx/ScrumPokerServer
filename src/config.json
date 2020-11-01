@@ -1,3 +1,9 @@
 {
-    "secretKey": "testkey"
+    "secretKey": "testkey",
+    "database":{
+        "name": "testDB",
+        "username": "testuser",
+        "password": "testpass",
+        "storage" : "test.db"
+    }
 }
