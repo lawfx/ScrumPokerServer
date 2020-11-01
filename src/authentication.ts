@@ -115,7 +115,7 @@ export class Authentication {
             }
           );
         } else {
-          res.status(400).json(Utils.createMessageJson('Wrong password'));
+          res.status(401).json(Utils.createMessageJson('Wrong password'));
         }
       } catch (e) {
         res
