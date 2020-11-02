@@ -39,18 +39,6 @@ export interface ErrorJSON {
   message: string;
 }
 
-/** Messages from client to server */
-
-export interface CreateRoomJSONClient {
-  username: string;
-  roomname: string;
-}
-
-export interface ConnectRoomJSONClient {
-  username: string;
-  roomname: string;
-}
-
 /** Internals models */
 
 export interface RoomDestructionMessage {

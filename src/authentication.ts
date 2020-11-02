@@ -50,14 +50,14 @@ export class Authentication {
   static verifyToken(req: IncomingMessage, res: Response, next: NextFunction) {
     const bearerHeader = req.headers['authorization'];
     if (bearerHeader === undefined) {
-      res.sendStatus(403);
+      res.sendStatus(401);
       return;
     }
     const bearer = bearerHeader.split(' ');
     const bearerToken = bearer[1];
     jwt.verify(bearerToken, config.secretKey, (err: any, authData: any) => {
       if (err) {
-        res.sendStatus(403);
+        res.sendStatus(401);
         return;
       }
 

@@ -1,11 +1,8 @@
 import { Room } from './room';
 import { User } from './user';
 import webSocket from 'ws';
-import { IncomingMessage } from 'http';
 import {
   ErrorJSON,
-  CreateRoomJSONClient,
-  ConnectRoomJSONClient,
   LobbyStatusJSON,
   LobbyStatusContentJSON,
   RoomDestructionMessage
@@ -15,6 +12,7 @@ import PubSub from 'pubsub-js';
 import { Router, Response } from 'express';
 import { ResponseEnum } from './enums';
 import { Utils } from './utils';
+import { Authentication } from './authentication';
 
 export class Lobby {
   private rooms: Room[] = [];
@@ -99,16 +97,14 @@ export class Lobby {
   }
 
   private setupRoutes() {
-    this.router.put('/rooms/create', (req, res) => {
-      const msg: CreateRoomJSONClient = req.body;
+    this.router.put('/rooms/create', Authentication.verifyToken, (req, res) => {
+      const username = res.locals.username;
+      const roomname = req.body.roomname;
       let result;
-      if (
-        typeof msg.username !== 'string' ||
-        typeof msg.roomname !== 'string'
-      ) {
+      if (typeof roomname !== 'string') {
         result = ResponseEnum.MALFORMED_REQUEST;
       } else {
-        result = this.createRoom(msg.username?.trim(), msg.roomname?.trim());
+        result = this.createRoom(username, roomname?.trim());
       }
       if (result === ResponseEnum.OK) {
         res.status(201).json(Utils.createMessageJson('Room created'));
@@ -117,64 +113,62 @@ export class Lobby {
       }
     });
 
-    this.router.patch('/rooms/connect', (req, res) => {
-      const msg: ConnectRoomJSONClient = req.body;
-      let result;
-      if (
-        typeof msg.username !== 'string' ||
-        typeof msg.roomname !== 'string'
-      ) {
-        result = ResponseEnum.MALFORMED_REQUEST;
-      } else {
-        result = this.connectToRoom(msg.username?.trim(), msg.roomname?.trim());
+    this.router.patch(
+      '/rooms/connect',
+      Authentication.verifyToken,
+      (req, res) => {
+        const username = res.locals.username;
+        const roomname = req.body.roomname;
+        let result;
+        if (typeof roomname !== 'string') {
+          result = ResponseEnum.MALFORMED_REQUEST;
+        } else {
+          result = this.connectToRoom(username, roomname?.trim());
+        }
+        if (result === ResponseEnum.OK) {
+          res
+            .status(200)
+            .json(Utils.createMessageJson(`Connected to ${roomname}`));
+        } else {
+          this.processResult(result, res);
+        }
       }
-      if (result === ResponseEnum.OK) {
-        res
-          .status(200)
-          .json(Utils.createMessageJson(`Connected to ${msg.roomname}`));
-      } else {
-        this.processResult(result, res);
-      }
-    });
+    );
 
-    this.router.patch('/rooms/disconnect', (req, res) => {
-      const username = req.body.username;
-      let result;
-      if (typeof username !== 'string') {
-        result = ResponseEnum.MALFORMED_REQUEST;
-      } else {
-        result = this.disconnectFromRoom(username?.trim());
+    this.router.patch(
+      '/rooms/disconnect',
+      Authentication.verifyToken,
+      (req, res) => {
+        const username = res.locals.username;
+        const result = this.disconnectFromRoom(username);
+        if (result === ResponseEnum.OK) {
+          res
+            .status(200)
+            .json(Utils.createMessageJson(`Disconnected from room`));
+        } else {
+          this.processResult(result, res);
+        }
       }
-      if (result === ResponseEnum.OK) {
-        res.status(200).json(Utils.createMessageJson(`Disconnected from room`));
-      } else {
-        this.processResult(result, res);
-      }
-    });
+    );
 
-    this.router.delete('/rooms/destroy', (req, res) => {
-      const username = req.body.username;
-      let result;
-      if (typeof username !== 'string') {
-        result = ResponseEnum.MALFORMED_REQUEST;
-      } else {
-        result = this.destroyRoomOrderedByUser(username?.trim());
+    this.router.delete(
+      '/rooms/destroy',
+      Authentication.verifyToken,
+      (req, res) => {
+        const username = res.locals.username;
+        const result = this.destroyRoomOrderedByUser(username);
+        if (result === ResponseEnum.OK) {
+          res.status(200).json(Utils.createMessageJson(`Room destroyed`));
+        } else {
+          this.processResult(result, res);
+        }
       }
-      if (result === ResponseEnum.OK) {
-        res.status(200).json(Utils.createMessageJson(`Room destroyed`));
-      } else {
-        this.processResult(result, res);
-      }
-    });
+    );
   }
 
-  private createUser(name?: string): User | ResponseEnum {
-    if (name === undefined || name.length === 0) {
-      return ResponseEnum.USERNAME_EMPTY;
-    } else if (name.length > 20) {
-      return ResponseEnum.USERNAME_TOO_LONG;
-    } else if (this.getUserByName(name) !== undefined) {
-      return ResponseEnum.USER_ALREADY_EXISTS;
+  private createUser(name: string): User | ResponseEnum {
+    if (this.getUserByName(name) !== undefined) {
+      return ResponseEnum.USER_ALREADY_CONNECTED;
     }
     const user = new User(name);
     this.users.push(user);
@@ -200,7 +194,7 @@ export class Lobby {
 
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return ResponseEnum.USER_NOT_EXISTS;
+      return ResponseEnum.USER_NOT_CONNECTED;
     } else if (roomName.length === 0) {
       return ResponseEnum.ROOMNAME_EMPTY;
     } else if (this.roomExists(roomName)) {
@@ -237,7 +231,7 @@ export class Lobby {
 
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return ResponseEnum.USER_NOT_EXISTS;
+      return ResponseEnum.USER_NOT_CONNECTED;
     }
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
@@ -266,7 +260,7 @@ export class Lobby {
     const room = this.rooms.find((r) => r.getName() === roomname);
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return ResponseEnum.USER_NOT_EXISTS;
+      return ResponseEnum.USER_NOT_CONNECTED;
     } else if (room === undefined) {
       return ResponseEnum.ROOM_NOT_EXISTS;
     } else if (user.getRoom(this.rooms) !== undefined) {
@@ -283,7 +277,7 @@ export class Lobby {
 
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return ResponseEnum.USER_NOT_EXISTS;
+      return ResponseEnum.USER_NOT_CONNECTED;
     }
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
@@ -352,14 +346,19 @@ export class Lobby {
         message = 'Username is empty';
         break;
       }
-      case ResponseEnum.USER_NOT_EXISTS: {
-        code = 404;
-        message = 'User not found';
+      case ResponseEnum.USERNAME_TOO_LONG: {
+        code = 403;
+        message = 'User name length exceeds 20 characters';
         break;
       }
-      case ResponseEnum.USER_ALREADY_EXISTS: {
+      case ResponseEnum.USER_NOT_CONNECTED: {
+        code = 404;
+        message = 'User not connected';
+        break;
+      }
+      case ResponseEnum.USER_ALREADY_CONNECTED: {
         code = 409;
-        message = 'User already exists';
+        message = 'User already connected';
         break;
       }
       case ResponseEnum.USER_NOT_ADMIN: {

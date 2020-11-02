@@ -37,12 +37,8 @@ wss.on('connection', async (ws, req) => {
   if (result !== ResponseEnum.OK) {
     ws.close(
       4001,
-      result === ResponseEnum.USERNAME_EMPTY
-        ? 'Username is empty'
-        : result === ResponseEnum.USERNAME_TOO_LONG
-        ? "Username can't exceed 20 characters"
-        : result === ResponseEnum.USER_ALREADY_EXISTS
-        ? 'User already exists'
+      result === ResponseEnum.USER_ALREADY_CONNECTED
+        ? 'User already connected'
         : 'Unknown error'
     );
   }
