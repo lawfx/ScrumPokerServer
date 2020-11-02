@@ -30,23 +30,40 @@ export class Authentication {
     return ret;
   }
 
-  static verifyToken(req: IncomingMessage, res: Response, next: NextFunction) {
-    const bearerHeader = req.headers['authorization'];
-    if (bearerHeader !== undefined) {
-      const bearer = bearerHeader.split(' ');
-      const bearerToken = bearer[1];
-      jwt.verify(bearerToken, config.secretKey, (err: any, authData: any) => {
+  static async verifyTokenWS(req: IncomingMessage): Promise<string> {
+    return new Promise((res, rej) => {
+      const token = req.headers['token'];
+      if (token === undefined || typeof token !== 'string') {
+        return rej();
+      }
+      jwt.verify(token, config.secretKey, (err: any, authData: any) => {
         if (err) {
-          res.sendStatus(403);
-          return;
+          console.error(err);
+          return rej();
         }
 
-        res.locals.username = authData.username;
-        next();
+        return res(authData.username);
       });
-    } else {
+    });
+  }
+
+  static verifyToken(req: IncomingMessage, res: Response, next: NextFunction) {
+    const bearerHeader = req.headers['authorization'];
+    if (bearerHeader === undefined) {
       res.sendStatus(403);
+      return;
     }
+    const bearer = bearerHeader.split(' ');
+    const bearerToken = bearer[1];
+    jwt.verify(bearerToken, config.secretKey, (err: any, authData: any) => {
+      if (err) {
+        res.sendStatus(403);
+        return;
+      }
+
+      res.locals.username = authData.username;
+      next();
+    });
   }
 
   private setupRoutes() {
@@ -107,13 +124,7 @@ export class Authentication {
         }
         const hash = Authentication.hash(password, user.salt);
         if (hash.hashedPassword === user.passwordHash) {
-          jwt.sign(
-            { username: username },
-            config.secretKey,
-            (err: any, token: any) => {
-              res.json({ token: token });
-            }
-          );
+          this.createToken({ username: username }, '10h', res);
         } else {
           res.status(401).json(Utils.createMessageJson('Wrong password'));
         }
@@ -121,10 +132,48 @@ export class Authentication {
         res
           .status(500)
           .json(
-            Utils.createMessageJson(e.errors[0]?.message ?? 'unknown error')
+            Utils.createMessageJson(e.errors[0]?.message ?? 'Unknown error')
           );
       }
     });
+
+    this.router.post('/auth/login/guest', async (req, res) => {
+      if (typeof req.body.username !== 'string') {
+        res.status(400).json(Utils.createMessageJson('Malformed request'));
+        return;
+      }
+      const username = req.body.username?.trim();
+
+      try {
+        const user = await UserModel.findOne({ where: { username: username } });
+        if (user !== null) {
+          res.status(409).json(Utils.createMessageJson('User exists'));
+          return;
+        }
+        this.createToken({ username: username }, '5h', res);
+      } catch (e) {
+        res
+          .status(500)
+          .json(
+            Utils.createMessageJson(e.errors[0]?.message ?? 'Unknown error')
+          );
+      }
+    });
+  }
+
+  private createToken(data: object, duration: string | number, res: Response) {
+    jwt.sign(
+      data,
+      config.secretKey,
+      { expiresIn: duration },
+      (err: any, token: any) => {
+        if (err) {
+          res.status(500).send(Utils.createMessageJson('Error creating token'));
+          return;
+        }
+        res.json({ token: token });
+      }
+    );
   }
 
   private static generateSalt() {
@@ -132,5 +181,23 @@ export class Authentication {
       .randomBytes(Math.ceil(this.SALT_ROUNDS / 2))
       .toString('hex')
       .slice(0, this.SALT_ROUNDS);
+  }
+
+  /**This method is just for internal testing of the websocket */
+  static async _verifyTokenWS(req: IncomingMessage): Promise<string> {
+    return new Promise((res, rej) => {
+      const token = Utils.getQueryVariable(req.url!, 'token');
+      if (token === undefined) {
+        return rej();
+      }
+      jwt.verify(token, config.secretKey, (err: any, authData: any) => {
+        if (err) {
+          console.error(err);
+          return rej();
+        }
+
+        return res(authData.username);
+      });
+    });
   }
 }

@@ -20,14 +20,20 @@ app.get('/*', (req, res) => res.send('Scrum poker server running!'));
 const server = app.listen(port, () => console.log(`Listening in ${port}`));
 const wss = new webSocket.Server({ server });
 
-wss.on('connection', (ws, req) => {
+wss.on('connection', async (ws, req) => {
+  let username: string;
+  try {
+    username = await Authentication.verifyTokenWS(req);
+  } catch (e) {
+    console.error('Invalid token');
+    ws.close(4003, 'Invalid token');
+    return;
+  }
+
   (ws as any).isAlive = true;
   ws.on('pong', () => heartbeat(ws));
-  // if (req.headers.username === undefined) {
-  //   ws.close();
-  // }
 
-  const result = lobby.onNewConnection(ws, req);
+  const result = lobby.onNewConnection(ws, username);
   if (result !== ResponseEnum.OK) {
     ws.close(
       4001,

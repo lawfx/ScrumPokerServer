@@ -45,10 +45,8 @@ export class Lobby {
     return this.router;
   }
 
-  onNewConnection(ws: webSocket, req: IncomingMessage): ResponseEnum {
-    //TODO use req to get name from headers
-    const name = this.getQueryVariable(req.url!, 'name');
-    const user = this.createUser(name);
+  onNewConnection(ws: webSocket, username: string): ResponseEnum {
+    const user = this.createUser(username);
     if (user instanceof User) {
       user.setWs(ws);
       user.sendMessage(this.getLobbyStatusJSON());
@@ -412,16 +410,5 @@ export class Lobby {
       }
     }
     res.status(code).json(Utils.createMessageJson(message));
-  }
-
-  private getQueryVariable(url: string, variable: string): string | undefined {
-    const query = decodeURI(url).substring(2);
-    const vars = query.split('&');
-    for (let i = 0; i < vars.length; i++) {
-      const pair = vars[i].split('=');
-      if (pair[0] == variable) {
-        return pair[1]?.trim();
-      }
-    }
   }
 }
