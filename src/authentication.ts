@@ -119,14 +119,14 @@ export class Authentication {
       try {
         const user = await UserModel.findOne({ where: { username: username } });
         if (user === null) {
-          res.status(404).json(Utils.createMessageJson('User not found'));
+          res.status(401).json(Utils.createMessageJson('Wrong credentials'));
           return;
         }
         const hash = Authentication.hash(password, user.salt);
         if (hash.hashedPassword === user.passwordHash) {
           this.createToken({ username: username }, '10h', res);
         } else {
-          res.status(401).json(Utils.createMessageJson('Wrong password'));
+          res.status(401).json(Utils.createMessageJson('Wrong credentials'));
         }
       } catch (e) {
         res
@@ -147,7 +147,7 @@ export class Authentication {
       try {
         const user = await UserModel.findOne({ where: { username: username } });
         if (user !== null) {
-          res.status(409).json(Utils.createMessageJson('User exists'));
+          res.status(409).json(Utils.createMessageJson('User already exists'));
           return;
         }
         this.createToken({ username: username }, '5h', res);
