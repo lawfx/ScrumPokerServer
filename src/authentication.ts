@@ -30,9 +30,8 @@ export class Authentication {
     return ret;
   }
 
-  static async verifyTokenWS(req: IncomingMessage): Promise<string> {
+  static async verifyTokenWS(token: string): Promise<string> {
     return new Promise((res, rej) => {
-      const token = req.headers['token'];
       if (token === undefined || typeof token !== 'string') {
         return rej();
       }
