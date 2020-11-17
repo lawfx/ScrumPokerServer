@@ -107,7 +107,7 @@ export class Lobby {
         result = this.createRoom(username, roomname?.trim());
       }
       if (result === ResponseEnum.OK) {
-        res.status(201).json(Utils.createMessageJson('Room created'));
+        res.sendStatus(201);
       } else {
         this.processResult(result, res);
       }
@@ -126,9 +126,7 @@ export class Lobby {
           result = this.connectToRoom(username, roomname?.trim());
         }
         if (result === ResponseEnum.OK) {
-          res
-            .status(200)
-            .json(Utils.createMessageJson(`Connected to ${roomname}`));
+          res.sendStatus(200);
         } else {
           this.processResult(result, res);
         }
@@ -142,9 +140,7 @@ export class Lobby {
         const username = res.locals.username;
         const result = this.disconnectFromRoom(username);
         if (result === ResponseEnum.OK) {
-          res
-            .status(200)
-            .json(Utils.createMessageJson(`Disconnected from room`));
+          res.sendStatus(200);
         } else {
           this.processResult(result, res);
         }
@@ -158,7 +154,7 @@ export class Lobby {
         const username = res.locals.username;
         const result = this.destroyRoomOrderedByUser(username);
         if (result === ResponseEnum.OK) {
-          res.status(200).json(Utils.createMessageJson(`Room destroyed`));
+          res.sendStatus(200);
         } else {
           this.processResult(result, res);
         }

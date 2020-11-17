@@ -6,6 +6,7 @@ import config from './config.json';
 import { Utils } from './utils';
 import jwt from 'jsonwebtoken';
 import { IncomingMessage } from 'http';
+import { ResponseEnum } from './enums';
 
 export class Authentication {
   private static readonly SALT_ROUNDS = 20;
@@ -71,7 +72,9 @@ export class Authentication {
         typeof req.body.username !== 'string' ||
         typeof req.body.password !== 'string'
       ) {
-        res.status(400).json(Utils.createMessageJson('Malformed request'));
+        res
+          .status(400)
+          .json(Utils.createMessageJson(ResponseEnum.MalformedRequest));
         return;
       }
 
@@ -84,7 +87,9 @@ export class Authentication {
         password === '' ||
         password === undefined
       ) {
-        res.status(400).json(Utils.createMessageJson('Malformed request'));
+        res
+          .status(400)
+          .json(Utils.createMessageJson(ResponseEnum.MalformedRequest));
         return;
       }
       const hash = Authentication.hash(password);
@@ -99,7 +104,9 @@ export class Authentication {
         res
           .status(500)
           .json(
-            Utils.createMessageJson(e.errors[0]?.message ?? 'unknown error')
+            Utils.createMessageJson(
+              e.errors[0]?.message ?? ResponseEnum.UnknownError
+            )
           );
       }
     });
@@ -109,7 +116,9 @@ export class Authentication {
         typeof req.body.username !== 'string' ||
         typeof req.body.password !== 'string'
       ) {
-        res.status(400).json(Utils.createMessageJson('Malformed request'));
+        res
+          .status(400)
+          .json(Utils.createMessageJson(ResponseEnum.MalformedRequest));
         return;
       }
       const username = req.body.username?.trim();
@@ -118,27 +127,35 @@ export class Authentication {
       try {
         const user = await UserModel.findOne({ where: { username: username } });
         if (user === null) {
-          res.status(401).json(Utils.createMessageJson('Wrong credentials'));
+          res
+            .status(401)
+            .json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
           return;
         }
         const hash = Authentication.hash(password, user.salt);
         if (hash.hashedPassword === user.passwordHash) {
           this.createToken({ username: username }, '10h', res);
         } else {
-          res.status(401).json(Utils.createMessageJson('Wrong credentials'));
+          res
+            .status(401)
+            .json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
         }
       } catch (e) {
         res
           .status(500)
           .json(
-            Utils.createMessageJson(e.errors[0]?.message ?? 'Unknown error')
+            Utils.createMessageJson(
+              e.errors[0]?.message ?? ResponseEnum.UnknownError
+            )
           );
       }
     });
 
     this.router.post('/auth/login/guest', async (req, res) => {
       if (typeof req.body.username !== 'string') {
-        res.status(400).json(Utils.createMessageJson('Malformed request'));
+        res
+          .status(400)
+          .json(Utils.createMessageJson(ResponseEnum.MalformedRequest));
         return;
       }
       const username = req.body.username?.trim();
@@ -146,7 +163,9 @@ export class Authentication {
       try {
         const user = await UserModel.findOne({ where: { username: username } });
         if (user !== null) {
-          res.status(409).json(Utils.createMessageJson('User already exists'));
+          res
+            .status(409)
+            .json(Utils.createMessageJson(ResponseEnum.UserAlreadyExists));
           return;
         }
         this.createToken({ username: username }, '5h', res);
@@ -154,7 +173,9 @@ export class Authentication {
         res
           .status(500)
           .json(
-            Utils.createMessageJson(e.errors[0]?.message ?? 'Unknown error')
+            Utils.createMessageJson(
+              e.errors[0]?.message ?? ResponseEnum.UnknownError
+            )
           );
       }
     });
@@ -167,7 +188,9 @@ export class Authentication {
       { expiresIn: duration },
       (err: any, token: any) => {
         if (err) {
-          res.status(500).send(Utils.createMessageJson('Error creating token'));
+          res
+            .status(500)
+            .send(Utils.createMessageJson(ResponseEnum.TokenCreationError));
           return;
         }
         res.json({ token: token });
