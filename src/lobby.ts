@@ -102,7 +102,7 @@ export class Lobby {
       const roomname = req.body.roomname;
       let result;
       if (typeof roomname !== 'string') {
-        result = ResponseEnum.MALFORMED_REQUEST;
+        result = ResponseEnum.MalformedRequest;
       } else {
         result = this.createRoom(username, roomname?.trim());
       }
@@ -121,7 +121,7 @@ export class Lobby {
         const roomname = req.body.roomname;
         let result;
         if (typeof roomname !== 'string') {
-          result = ResponseEnum.MALFORMED_REQUEST;
+          result = ResponseEnum.MalformedRequest;
         } else {
           result = this.connectToRoom(username, roomname?.trim());
         }
@@ -168,7 +168,7 @@ export class Lobby {
 
   private createUser(name: string): User | ResponseEnum {
     if (this.getUserByName(name) !== undefined) {
-      return ResponseEnum.USER_ALREADY_CONNECTED;
+      return ResponseEnum.UserAlreadyConnected;
     }
     const user = new User(name);
     this.users.push(user);
@@ -189,20 +189,20 @@ export class Lobby {
       roomName === undefined ||
       roomName === null
     ) {
-      return ResponseEnum.MALFORMED_REQUEST;
+      return ResponseEnum.MalformedRequest;
     }
 
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return ResponseEnum.USER_NOT_CONNECTED;
+      return ResponseEnum.UserNotConnected;
     } else if (roomName.length === 0) {
-      return ResponseEnum.ROOMNAME_EMPTY;
+      return ResponseEnum.RoomnameEmpty;
     } else if (this.roomExists(roomName)) {
-      return ResponseEnum.ROOM_ALREADY_EXISTS;
+      return ResponseEnum.RoomAlreadyExists;
     } else if (roomName.length > 20) {
-      return ResponseEnum.ROOMNAME_TOO_LONG;
+      return ResponseEnum.RoomnameTooLong;
     } else if (user.getRoom(this.rooms) !== undefined) {
-      return ResponseEnum.ALREADY_IN_A_ROOM;
+      return ResponseEnum.UserAlreadyInARoom;
     }
     const room = new Room(roomName, user);
     this.rooms.push(room);
@@ -226,18 +226,18 @@ export class Lobby {
 
   private destroyRoomOrderedByUser(username: string): ResponseEnum {
     if (username === undefined || username === null) {
-      return ResponseEnum.MALFORMED_REQUEST;
+      return ResponseEnum.MalformedRequest;
     }
 
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return ResponseEnum.USER_NOT_CONNECTED;
+      return ResponseEnum.UserNotConnected;
     }
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
-      return ResponseEnum.NOT_IN_A_ROOM;
+      return ResponseEnum.UserNotInARoom;
     } else if (!room.isAdmin(user)) {
-      return ResponseEnum.USER_NOT_ADMIN;
+      return ResponseEnum.UserNotAdmin;
     }
 
     //removing the user first so that he won't get the reason for destroying the room too
@@ -254,17 +254,17 @@ export class Lobby {
       roomname === undefined ||
       roomname === null
     ) {
-      return ResponseEnum.MALFORMED_REQUEST;
+      return ResponseEnum.MalformedRequest;
     }
 
     const room = this.rooms.find((r) => r.getName() === roomname);
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return ResponseEnum.USER_NOT_CONNECTED;
+      return ResponseEnum.UserNotConnected;
     } else if (room === undefined) {
-      return ResponseEnum.ROOM_NOT_EXISTS;
+      return ResponseEnum.RoomNotExists;
     } else if (user.getRoom(this.rooms) !== undefined) {
-      return ResponseEnum.ALREADY_IN_A_ROOM;
+      return ResponseEnum.UserAlreadyInARoom;
     }
     room.addUser(user);
     return ResponseEnum.OK;
@@ -272,16 +272,16 @@ export class Lobby {
 
   private disconnectFromRoom(username: string): ResponseEnum {
     if (username === undefined || username === null) {
-      return ResponseEnum.MALFORMED_REQUEST;
+      return ResponseEnum.MalformedRequest;
     }
 
     const user = this.getUserByName(username);
     if (user === undefined) {
-      return ResponseEnum.USER_NOT_CONNECTED;
+      return ResponseEnum.UserNotConnected;
     }
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
-      return ResponseEnum.NOT_IN_A_ROOM;
+      return ResponseEnum.UserNotInARoom;
     }
     room.removeUser(user);
     user.sendMessage(this.getLobbyStatusJSON());
@@ -339,71 +339,58 @@ export class Lobby {
 
   private processResult(result: ResponseEnum, res: Response) {
     let code: number;
-    let message: string;
+    const message = result;
     switch (result) {
-      case ResponseEnum.USERNAME_EMPTY: {
+      case ResponseEnum.UsernameEmpty: {
         code = 400;
-        message = 'Username is empty';
         break;
       }
-      case ResponseEnum.USERNAME_TOO_LONG: {
+      case ResponseEnum.UsernameTooLong: {
         code = 403;
-        message = 'User name length exceeds 20 characters';
         break;
       }
-      case ResponseEnum.USER_NOT_CONNECTED: {
+      case ResponseEnum.UserNotConnected: {
         code = 404;
-        message = 'User not connected';
         break;
       }
-      case ResponseEnum.USER_ALREADY_CONNECTED: {
+      case ResponseEnum.UserAlreadyConnected: {
         code = 409;
-        message = 'User already connected';
         break;
       }
-      case ResponseEnum.USER_NOT_ADMIN: {
+      case ResponseEnum.UserNotAdmin: {
         code = 401;
-        message = 'User not admin';
         break;
       }
-      case ResponseEnum.ROOMNAME_EMPTY: {
+      case ResponseEnum.UserAlreadyInARoom: {
+        code = 409;
+        break;
+      }
+      case ResponseEnum.UserNotInARoom: {
+        code = 404;
+        break;
+      }
+      case ResponseEnum.RoomnameEmpty: {
         code = 400;
-        message = 'Room name is empty';
         break;
       }
-      case ResponseEnum.ROOMNAME_TOO_LONG: {
+      case ResponseEnum.RoomnameTooLong: {
         code = 403;
-        message = 'Room name length exceeds 20 characters';
         break;
       }
-      case ResponseEnum.ROOM_NOT_EXISTS: {
+      case ResponseEnum.RoomNotExists: {
         code = 404;
-        message = 'Room not found';
         break;
       }
-      case ResponseEnum.ROOM_ALREADY_EXISTS: {
+      case ResponseEnum.RoomAlreadyExists: {
         code = 409;
-        message = 'Room already exists';
         break;
       }
-      case ResponseEnum.ALREADY_IN_A_ROOM: {
-        code = 409;
-        message = 'Already in a room';
-        break;
-      }
-      case ResponseEnum.NOT_IN_A_ROOM: {
-        code = 404;
-        message = 'Not in a room';
-        break;
-      }
-      case ResponseEnum.MALFORMED_REQUEST: {
+      case ResponseEnum.MalformedRequest: {
         code = 400;
-        message = 'Malformed request';
         break;
       }
       default: {
         code = 400;
-        message = 'Unhandled result. Contact admin';
         console.error(result);
         break;
       }

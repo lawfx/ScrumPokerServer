@@ -77,12 +77,7 @@ async function processMessage(ws: webSocket, msg: Data) {
       (ws as any).isAuthed = true;
       const result = lobby.onNewConnection(ws, username);
       if (result !== ResponseEnum.OK) {
-        ws.close(
-          4001,
-          result === ResponseEnum.USER_ALREADY_CONNECTED
-            ? 'User already connected'
-            : 'Unknown error'
-        );
+        ws.close(4001, result);
       }
     } else if (msgJSON.request_estimate !== undefined) {
       if (!(ws as any).isAuthed) return;
