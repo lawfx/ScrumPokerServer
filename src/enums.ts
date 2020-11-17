@@ -13,7 +13,7 @@ export enum ResponseEnum {
   RoomAlreadyExists = 'Error.RoomAlreadyExists',
   OK = 'OK',
   MalformedRequest = 'Error.MalformedRequest',
-  UnknownError = 'Error.UnknownError',
+  UnknownError = 'Error.Unknown',
   //auth
   WrongCredentials = 'Error.WrongCredentials',
   UserAlreadyExists = 'Error.UserAlreadyExists',
