@@ -1,3 +1,4 @@
+import { ResponseEnum } from './enums';
 import { Room } from './room';
 
 /** Messages from server to client */
@@ -37,6 +38,11 @@ export interface RoomStatusTaskEstimateJSON {
 export interface ErrorJSON {
   command: string;
   message: string;
+}
+
+export interface ResponsePair {
+  message: ResponseEnum;
+  code: number;
 }
 
 /** Internals models */

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { NextFunction, Router, Response } from 'express';
-import { Hash } from './models';
+import { Hash, ResponsePair } from './models';
 import { UserModel } from './models/user-model';
 import config from './config.json';
 import { Utils } from './utils';
@@ -68,30 +68,23 @@ export class Authentication {
 
   private setupRoutes() {
     this.router.post('/auth/register', async (req, res) => {
-      if (
-        typeof req.body.username !== 'string' ||
-        typeof req.body.password !== 'string'
-      ) {
+      const resUsername = this.validateUsername(req.body.username);
+      const resPassword = this.validatePassword(req.body.password);
+      if (resUsername !== ResponseEnum.OK) {
         res
-          .status(400)
-          .json(Utils.createMessageJson(ResponseEnum.MalformedRequest));
+          .status(resUsername.code)
+          .send(Utils.createMessageJson(resUsername.message));
+        return;
+      } else if (resPassword !== ResponseEnum.OK) {
+        res
+          .status(resPassword.code)
+          .send(Utils.createMessageJson(resPassword.message));
         return;
       }
 
-      const username = req.body.username?.trim();
-      const password = req.body.password?.trim();
+      const username = req.body.username.trim();
+      const password = req.body.password.trim();
 
-      if (
-        username === '' ||
-        username === undefined ||
-        password === '' ||
-        password === undefined
-      ) {
-        res
-          .status(400)
-          .json(Utils.createMessageJson(ResponseEnum.MalformedRequest));
-        return;
-      }
       const hash = Authentication.hash(password);
       try {
         await UserModel.create({
@@ -112,17 +105,22 @@ export class Authentication {
     });
 
     this.router.post('/auth/login', async (req, res) => {
-      if (
-        typeof req.body.username !== 'string' ||
-        typeof req.body.password !== 'string'
-      ) {
+      const resUsername = this.validateUsername(req.body.username);
+      const resPassword = this.validatePassword(req.body.password);
+      if (resUsername !== ResponseEnum.OK) {
         res
-          .status(400)
-          .json(Utils.createMessageJson(ResponseEnum.MalformedRequest));
+          .status(resUsername.code)
+          .send(Utils.createMessageJson(resUsername.message));
+        return;
+      } else if (resPassword !== ResponseEnum.OK) {
+        res
+          .status(resPassword.code)
+          .send(Utils.createMessageJson(resPassword.message));
         return;
       }
-      const username = req.body.username?.trim();
-      const password = req.body.password?.trim();
+
+      const username = req.body.username.trim();
+      const password = req.body.password.trim();
 
       try {
         const user = await UserModel.findOne({ where: { username: username } });
@@ -152,13 +150,15 @@ export class Authentication {
     });
 
     this.router.post('/auth/login/guest', async (req, res) => {
-      if (typeof req.body.username !== 'string') {
+      const resUsername = this.validateUsername(req.body.username);
+      if (resUsername !== ResponseEnum.OK) {
         res
-          .status(400)
-          .json(Utils.createMessageJson(ResponseEnum.MalformedRequest));
+          .status(resUsername.code)
+          .send(Utils.createMessageJson(resUsername.message));
         return;
       }
-      const username = req.body.username?.trim();
+
+      const username = req.body.username.trim();
 
       try {
         const user = await UserModel.findOne({ where: { username: username } });
@@ -198,28 +198,34 @@ export class Authentication {
     );
   }
 
+  private validatePassword(password: any): ResponsePair | ResponseEnum.OK {
+    if (typeof password !== 'string') {
+      return Utils.getResponsePair(ResponseEnum.MalformedRequest);
+    }
+    password = password.trim();
+    if (password.length === 0) {
+      return Utils.getResponsePair(ResponseEnum.PasswordEmpty);
+    }
+    return ResponseEnum.OK;
+  }
+
+  private validateUsername(username: any): ResponsePair | ResponseEnum.OK {
+    if (typeof username !== 'string') {
+      return Utils.getResponsePair(ResponseEnum.MalformedRequest);
+    }
+    username = username.trim();
+    if (username.length === 0) {
+      return Utils.getResponsePair(ResponseEnum.UsernameEmpty);
+    } else if (username.length > 20) {
+      return Utils.getResponsePair(ResponseEnum.UsernameTooLong);
+    }
+    return ResponseEnum.OK;
+  }
+
   private static generateSalt() {
     return crypto
       .randomBytes(Math.ceil(this.SALT_ROUNDS / 2))
       .toString('hex')
       .slice(0, this.SALT_ROUNDS);
-  }
-
-  /**This method is just for internal testing of the websocket */
-  static async _verifyTokenWS(req: IncomingMessage): Promise<string> {
-    return new Promise((res, rej) => {
-      const token = Utils.getQueryVariable(req.url!, 'token');
-      if (token === undefined) {
-        return rej();
-      }
-      jwt.verify(token, config.secretKey, (err: any, authData: any) => {
-        if (err) {
-          console.error(err);
-          return rej();
-        }
-
-        return res(authData.username);
-      });
-    });
   }
 }

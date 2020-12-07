@@ -9,7 +9,7 @@ import {
 } from './models';
 import { DESTROY_ROOM } from './event-types';
 import PubSub from 'pubsub-js';
-import { Router, Response } from 'express';
+import { Router } from 'express';
 import { ResponseEnum } from './enums';
 import { Utils } from './utils';
 import { Authentication } from './authentication';
@@ -109,7 +109,8 @@ export class Lobby {
       if (result === ResponseEnum.OK) {
         res.sendStatus(201);
       } else {
-        this.processResult(result, res);
+        const resPair = Utils.getResponsePair(result);
+        res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
       }
     });
 
@@ -128,7 +129,10 @@ export class Lobby {
         if (result === ResponseEnum.OK) {
           res.sendStatus(200);
         } else {
-          this.processResult(result, res);
+          const resPair = Utils.getResponsePair(result);
+          res
+            .status(resPair.code)
+            .json(Utils.createMessageJson(resPair.message));
         }
       }
     );
@@ -142,7 +146,10 @@ export class Lobby {
         if (result === ResponseEnum.OK) {
           res.sendStatus(200);
         } else {
-          this.processResult(result, res);
+          const resPair = Utils.getResponsePair(result);
+          res
+            .status(resPair.code)
+            .json(Utils.createMessageJson(resPair.message));
         }
       }
     );
@@ -156,7 +163,10 @@ export class Lobby {
         if (result === ResponseEnum.OK) {
           res.sendStatus(200);
         } else {
-          this.processResult(result, res);
+          const resPair = Utils.getResponsePair(result);
+          res
+            .status(resPair.code)
+            .json(Utils.createMessageJson(resPair.message));
         }
       }
     );
@@ -331,66 +341,5 @@ export class Lobby {
     error.command = command;
     error.message = message;
     return error;
-  }
-
-  private processResult(result: ResponseEnum, res: Response) {
-    let code: number;
-    const message = result;
-    switch (result) {
-      case ResponseEnum.UsernameEmpty: {
-        code = 400;
-        break;
-      }
-      case ResponseEnum.UsernameTooLong: {
-        code = 403;
-        break;
-      }
-      case ResponseEnum.UserNotConnected: {
-        code = 404;
-        break;
-      }
-      case ResponseEnum.UserAlreadyConnected: {
-        code = 409;
-        break;
-      }
-      case ResponseEnum.UserNotAdmin: {
-        code = 401;
-        break;
-      }
-      case ResponseEnum.UserAlreadyInARoom: {
-        code = 409;
-        break;
-      }
-      case ResponseEnum.UserNotInARoom: {
-        code = 404;
-        break;
-      }
-      case ResponseEnum.RoomnameEmpty: {
-        code = 400;
-        break;
-      }
-      case ResponseEnum.RoomnameTooLong: {
-        code = 403;
-        break;
-      }
-      case ResponseEnum.RoomNotExists: {
-        code = 404;
-        break;
-      }
-      case ResponseEnum.RoomAlreadyExists: {
-        code = 409;
-        break;
-      }
-      case ResponseEnum.MalformedRequest: {
-        code = 400;
-        break;
-      }
-      default: {
-        code = 400;
-        console.error(result);
-        break;
-      }
-    }
-    res.status(code).json(Utils.createMessageJson(message));
   }
 }

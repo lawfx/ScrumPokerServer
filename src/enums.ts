@@ -1,7 +1,6 @@
 export enum ResponseEnum {
   //lobby
-  UsernameEmpty = 'Error.UsernameEmpty',
-  UsernameTooLong = 'Error.UsernameMoreThan20Chars',
+
   UserNotConnected = 'Error.UserNotConnected',
   UserAlreadyConnected = 'Error.UserAlreadyConnected',
   UserNotAdmin = 'Error.UserNotAdmin',
@@ -15,6 +14,9 @@ export enum ResponseEnum {
   MalformedRequest = 'Error.MalformedRequest',
   UnknownError = 'Error.Unknown',
   //auth
+  UsernameEmpty = 'Error.UsernameEmpty',
+  UsernameTooLong = 'Error.UsernameMoreThan20Chars',
+  PasswordEmpty = 'Error.PasswordEmpty',
   WrongCredentials = 'Error.WrongCredentials',
   UserAlreadyExists = 'Error.UserAlreadyExists',
   TokenCreationError = 'Error.TokenCreation'
