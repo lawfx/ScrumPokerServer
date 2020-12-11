@@ -4,6 +4,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import { ResponseEnum } from './enums';
 import { Authentication } from './authentication';
+import cors from 'cors';
 
 const port = 8080; // default port to listen
 const lobby = new Lobby();
@@ -11,6 +12,7 @@ const auth = new Authentication();
 
 const app = express();
 app.use(bodyParser.json());
+app.use(cors());
 
 app.use('/', lobby.getRouter());
 app.use('/', auth.getRouter());
