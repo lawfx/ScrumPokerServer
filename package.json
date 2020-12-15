@@ -27,7 +27,6 @@
     "@types/jsonwebtoken": "^8.5.0",
     "@types/mocha": "^8.0.3",
     "@types/node": "^14.6.0",
-    "@types/pubsub-js": "^1.8.0",
     "@types/ws": "^7.2.6",
     "chai": "^4.2.0",
     "mocha": "^8.1.1",
@@ -40,7 +39,6 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "jsonwebtoken": "^8.5.1",
-    "pubsub-js": "^1.9.0",
     "sequelize": "^6.3.5",
     "sqlite3": "^5.0.0",
     "ws": "^7.3.1"

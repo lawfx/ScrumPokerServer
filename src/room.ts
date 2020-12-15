@@ -7,16 +7,18 @@ import {
   RoomStatusTaskEstimateJSON,
   RoomDestructionMessage
 } from './models';
-import { DESTROY_ROOM } from './event-types';
-import PubSub from 'pubsub-js';
 import { Task } from './task';
-import { Estimate } from './estimate';
+import { UserRole } from './enums';
+import { EventEmitter } from 'events';
+import { DESTROY_ROOM } from './event-types';
 
 export class Room {
   private name: string;
   private admins: User[] = [];
   private estimators: User[] = [];
+  private spectators: User[] = [];
   private disconnectedAdmins: string[] = [];
+  private roomEmitter: EventEmitter;
 
   private destructionTimeoutID?: NodeJS.Timeout;
   private readonly DESTRUCTION_TIMEOUT: number = 60000;
@@ -27,15 +29,20 @@ export class Room {
     console.log(`[Room: ${name}] Created by ${admin.getName()}`);
     this.name = name;
     this.addAdmin(admin);
+    this.roomEmitter = new EventEmitter();
   }
 
-  /** Adds a new user to the room. If he was an admin in this room before, he gets added as an admin, otherwise as an estimator. */
-  addUser(user: User) {
+  /** Adds a new user to the room. If he was an admin in this room before, he gets added as an admin, otherwise as an estimator or spectator. */
+  addUser(user: User, role = UserRole.Estimator) {
     if (this.isDisconnectedAdmin(user)) {
       this.addAdmin(user);
       return;
     }
-    this.addEstimator(user);
+    if (role === UserRole.Estimator) {
+      this.addEstimator(user);
+    } else {
+      this.addSpectator(user);
+    }
   }
 
   /** Removes an admin or an estimator from the room. */
@@ -44,7 +51,12 @@ export class Room {
     if (isAdmin) {
       this.removeAdmin(user);
     } else {
-      this.removeEstimator(user);
+      const isEstimator = this.estimators.includes(user);
+      if (isEstimator) {
+        this.removeEstimator(user);
+      } else {
+        this.removeSpectator(user);
+      }
     }
     if (this.isEmpty()) {
       if (this.destructionTimeoutID !== undefined) {
@@ -57,7 +69,7 @@ export class Room {
       const roomDestructionMessage = {} as RoomDestructionMessage;
       roomDestructionMessage.room = this;
       roomDestructionMessage.reason = '';
-      PubSub.publish(DESTROY_ROOM, roomDestructionMessage);
+      this.roomEmitter.emit(DESTROY_ROOM, roomDestructionMessage);
     }
   }
 
@@ -92,27 +104,45 @@ export class Room {
     return this.estimators;
   }
 
+  getSpectators() {
+    return this.spectators;
+  }
+
   getName() {
     return this.name;
   }
 
   getUsers() {
-    return [...this.admins, ...this.estimators];
+    return [...this.admins, ...this.estimators, ...this.spectators];
   }
 
   isAdmin(user: User): boolean {
     return this.admins.includes(user);
   }
 
+  isEstimator(user: User): boolean {
+    return this.estimators.includes(user);
+  }
+
+  isSpectator(user: User): boolean {
+    return this.spectators.includes(user);
+  }
+
   getCurrentTask(): Task | undefined {
     return this.task;
+  }
+
+  getEmitter(): EventEmitter {
+    return this.roomEmitter;
   }
 
   broadcastRoomStatus() {
     console.log(`[Room: ${this.name}] Broadcasting room status`);
     const roomStatus = this.getRoomStatusJSON();
     const roomStatusNoEstimates = this.getRoomStatusJSON(false);
-    this.admins.forEach((u) => u.sendMessage(roomStatus));
+    [...this.admins, ...this.spectators].forEach((u) =>
+      u.sendMessage(roomStatus)
+    );
     this.estimators.forEach((u) =>
       u.sendMessage(
         this.task?.hasEstimated(u) ? roomStatus : roomStatusNoEstimates
@@ -147,7 +177,7 @@ export class Room {
         const roomDestructionMessage = {} as RoomDestructionMessage;
         roomDestructionMessage.room = this;
         roomDestructionMessage.reason = 'No admin in room for a minute';
-        PubSub.publish(DESTROY_ROOM, roomDestructionMessage);
+        this.roomEmitter.emit(DESTROY_ROOM, roomDestructionMessage);
       }, this.DESTRUCTION_TIMEOUT);
     }
   }
@@ -165,6 +195,22 @@ export class Room {
       `[Room: ${this.name}] Removing estimator ${estimator.getName()}`
     );
     this.removeFromArray(estimator, this.estimators);
+    this.broadcastRoomStatus();
+  }
+
+  private addSpectator(spectator: User) {
+    this.spectators.push(spectator);
+    console.log(
+      `[Room: ${this.name}] ${spectator.getName()} added as spectator`
+    );
+    this.broadcastRoomStatus();
+  }
+
+  private removeSpectator(spectator: User) {
+    console.log(
+      `[Room: ${this.name}] Removing spectator ${spectator.getName()}`
+    );
+    this.removeFromArray(spectator, this.spectators);
     this.broadcastRoomStatus();
   }
 
@@ -187,9 +233,13 @@ export class Room {
 
     roomStatusUsersJson.admins = [];
     roomStatusUsersJson.estimators = [];
+    roomStatusUsersJson.spectators = [];
     this.admins.forEach((a) => roomStatusUsersJson.admins.push(a.getName()));
     this.estimators.forEach((u) =>
       roomStatusUsersJson.estimators.push(u.getName())
+    );
+    this.spectators.forEach((u) =>
+      roomStatusUsersJson.spectators.push(u.getName())
     );
 
     roomStatusTaskJson.id = this.task?.getId() ?? '';

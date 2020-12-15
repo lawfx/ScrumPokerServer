@@ -21,3 +21,10 @@ export enum ResponseEnum {
   UserAlreadyExists = 'Error.UserAlreadyExists',
   TokenCreationError = 'Error.TokenCreation'
 }
+
+export enum UserRole {
+  Admin = 'admin',
+  Estimator = 'estimator',
+  Spectator = 'spectator',
+  Unknown = 'unknown'
+}

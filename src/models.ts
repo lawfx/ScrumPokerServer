@@ -23,6 +23,7 @@ export interface RoomStatusContentJSON {
 export interface RoomStatusUsersJSON {
   admins: string[];
   estimators: string[];
+  spectators: string[];
 }
 
 export interface RoomStatusTaskJSON {

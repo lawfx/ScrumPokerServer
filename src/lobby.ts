@@ -8,9 +8,8 @@ import {
   RoomDestructionMessage
 } from './models';
 import { DESTROY_ROOM } from './event-types';
-import PubSub from 'pubsub-js';
 import { Router } from 'express';
-import { ResponseEnum } from './enums';
+import { ResponseEnum, UserRole } from './enums';
 import { Utils } from './utils';
 import { Authentication } from './authentication';
 
@@ -22,21 +21,6 @@ export class Lobby {
   constructor() {
     this.router = Router();
     this.setupRoutes();
-    // we don't need to delete the users from the room, because they are only referenced in there
-    // so when we delete the room they are considered in no room
-    PubSub.subscribe(
-      DESTROY_ROOM,
-      (msg: any, roomDestructionMessage: RoomDestructionMessage) => {
-        if (
-          this.destroyRoom(
-            roomDestructionMessage.room,
-            roomDestructionMessage.reason
-          )
-        ) {
-          this.broadcastLobbyStatus();
-        }
-      }
-    );
   }
 
   getRouter(): Router {
@@ -83,6 +67,10 @@ export class Lobby {
       console.error(`${user.getName()} sent invalid estimate`);
       return;
     }
+    else if(room.isSpectator(user)){
+      console.error(`${user.getName()} is a spectator. Estimate ignored...`);
+      return;
+    }
     const est = room.getCurrentTask()?.addEstimate(user, estimate);
     if (est === undefined) return;
     room.broadcastRoomStatus();
@@ -120,11 +108,17 @@ export class Lobby {
       (req, res) => {
         const username = res.locals.username;
         const roomname = req.body.roomname;
+        const role: UserRole =
+          req.body.role === UserRole.Estimator
+            ? UserRole.Estimator
+            : req.body.role === UserRole.Spectator
+            ? UserRole.Spectator
+            : UserRole.Unknown;
         let result;
-        if (typeof roomname !== 'string') {
+        if (typeof roomname !== 'string' || role === UserRole.Unknown) {
           result = ResponseEnum.MalformedRequest;
         } else {
-          result = this.connectToRoom(username, roomname?.trim());
+          result = this.connectToRoom(username, roomname?.trim(), role);
         }
         if (result === ResponseEnum.OK) {
           res.sendStatus(200);
@@ -211,6 +205,20 @@ export class Lobby {
       return ResponseEnum.UserAlreadyInARoom;
     }
     const room = new Room(roomName, user);
+    // we don't need to delete the users from the room, because they are only referenced in there
+    // so when we delete the room they are considered in no room
+    room
+      .getEmitter()
+      .on(DESTROY_ROOM, (roomDestructionMessage: RoomDestructionMessage) => {
+        if (
+          this.destroyRoom(
+            roomDestructionMessage.room,
+            roomDestructionMessage.reason
+          )
+        ) {
+          this.broadcastLobbyStatus();
+        }
+      });
     this.rooms.push(room);
     this.broadcastLobbyStatus();
     return ResponseEnum.OK;
@@ -253,7 +261,11 @@ export class Lobby {
     return ResponseEnum.OK;
   }
 
-  private connectToRoom(username: string, roomname: string): ResponseEnum {
+  private connectToRoom(
+    username: string,
+    roomname: string,
+    role: UserRole
+  ): ResponseEnum {
     if (
       username === undefined ||
       username === null ||
@@ -272,7 +284,7 @@ export class Lobby {
     } else if (user.getRoom(this.rooms) !== undefined) {
       return ResponseEnum.UserAlreadyInARoom;
     }
-    room.addUser(user);
+    room.addUser(user, role);
     return ResponseEnum.OK;
   }
 
