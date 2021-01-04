@@ -6,6 +6,8 @@ class UserModel extends Model {
   public username!: string;
   public passwordHash!: string;
   public salt!: string;
+  public securityQuestion!: string;
+  public securityAnswer!: string;
 }
 
 UserModel.init(
@@ -21,6 +23,14 @@ UserModel.init(
     },
     salt: {
       type: new DataTypes.STRING(128),
+      allowNull: false
+    },
+    securityQuestion: {
+      type: new DataTypes.STRING(100),
+      allowNull: false
+    },
+    securityAnswer: {
+      type: new DataTypes.STRING(20),
       allowNull: false
     }
   },

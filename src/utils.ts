@@ -86,6 +86,22 @@ export class Utils {
         pair.code = 500;
         break;
       }
+      case ResponseEnum.SecurityQuestionEmpty: {
+        pair.code = 400;
+        break;
+      }
+      case ResponseEnum.SecurityQuestionTooLong: {
+        pair.code = 403;
+        break;
+      }
+      case ResponseEnum.SecurityAnswerEmpty: {
+        pair.code = 400;
+        break;
+      }
+      case ResponseEnum.SecurityAnswerTooLong: {
+        pair.code = 403;
+        break;
+      }
       default: {
         pair.code = 400;
         console.error(responseMessage);

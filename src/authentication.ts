@@ -70,6 +70,12 @@ export class Authentication {
     this.router.post('/auth/register', async (req, res) => {
       const resUsername = this.validateUsername(req.body.username);
       const resPassword = this.validatePassword(req.body.password);
+      const resSecQuestion = this.validateSecurityQuestion(
+        req.body.security_question
+      );
+      const resSecAnswer = this.validateSecurityAnswer(
+        req.body.security_answer
+      );
       if (resUsername !== ResponseEnum.OK) {
         res
           .status(resUsername.code)
@@ -80,17 +86,31 @@ export class Authentication {
           .status(resPassword.code)
           .send(Utils.createMessageJson(resPassword.message));
         return;
+      } else if (resSecQuestion !== ResponseEnum.OK) {
+        res
+          .status(resSecQuestion.code)
+          .send(Utils.createMessageJson(resSecQuestion.message));
+        return;
+      } else if (resSecAnswer !== ResponseEnum.OK) {
+        res
+          .status(resSecAnswer.code)
+          .send(Utils.createMessageJson(resSecAnswer.message));
+        return;
       }
 
       const username = req.body.username.trim();
       const password = req.body.password.trim();
+      const question = req.body.security_question.trim();
+      const answer = req.body.security_answer.trim();
 
       const hash = Authentication.hash(password);
       try {
         await UserModel.create({
           username: username,
           passwordHash: hash.hashedPassword,
-          salt: hash.salt
+          salt: hash.salt,
+          securityQuestion: question,
+          securityAnswer: answer
         });
         res.sendStatus(201);
       } catch (e) {
@@ -218,6 +238,34 @@ export class Authentication {
       return Utils.getResponsePair(ResponseEnum.UsernameEmpty);
     } else if (username.length > 20) {
       return Utils.getResponsePair(ResponseEnum.UsernameTooLong);
+    }
+    return ResponseEnum.OK;
+  }
+
+  private validateSecurityQuestion(
+    question: any
+  ): ResponsePair | ResponseEnum.OK {
+    if (typeof question !== 'string') {
+      return Utils.getResponsePair(ResponseEnum.MalformedRequest);
+    }
+    question = question.trim();
+    if (question.length === 0) {
+      return Utils.getResponsePair(ResponseEnum.SecurityQuestionEmpty);
+    } else if (question.length > 100) {
+      return Utils.getResponsePair(ResponseEnum.SecurityQuestionTooLong);
+    }
+    return ResponseEnum.OK;
+  }
+
+  private validateSecurityAnswer(answer: any): ResponsePair | ResponseEnum.OK {
+    if (typeof answer !== 'string') {
+      return Utils.getResponsePair(ResponseEnum.MalformedRequest);
+    }
+    answer = answer.trim();
+    if (answer.length === 0) {
+      return Utils.getResponsePair(ResponseEnum.SecurityAnswerEmpty);
+    } else if (answer.length > 20) {
+      return Utils.getResponsePair(ResponseEnum.SecurityAnswerTooLong);
     }
     return ResponseEnum.OK;
   }

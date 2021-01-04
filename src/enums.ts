@@ -19,7 +19,11 @@ export enum ResponseEnum {
   PasswordEmpty = 'Error.PasswordEmpty',
   WrongCredentials = 'Error.WrongCredentials',
   UserAlreadyExists = 'Error.UserAlreadyExists',
-  TokenCreationError = 'Error.TokenCreation'
+  TokenCreationError = 'Error.TokenCreation',
+  SecurityQuestionEmpty = 'Error.SecurityQuestionEmpty',
+  SecurityQuestionTooLong = 'Error.SecurityQuestionMoreThan100Chars',
+  SecurityAnswerEmpty = 'Error.SecurityAnswerEmpty',
+  SecurityAnswerTooLong = 'Error.SecurityAnswerMoreThan20Chars'
 }
 
 export enum UserRole {
