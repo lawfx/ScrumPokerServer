@@ -21,12 +21,12 @@ export class Authentication {
     return this.router;
   }
 
-  static hash(password: string, salt: string = this.generateSalt()): Hash {
+  static hash(stringToHash: string, salt: string = this.generateSalt()): Hash {
     let hash = crypto.createHmac('sha512', salt);
-    hash.update(password);
+    hash.update(stringToHash);
     let value = hash.digest('hex');
     const ret = {} as Hash;
-    ret.hashedPassword = value;
+    ret.hash = value;
     ret.salt = salt;
     return ret;
   }
@@ -104,13 +104,15 @@ export class Authentication {
       const answer = req.body.security_answer.trim();
 
       const hash = Authentication.hash(password);
+      const securityAnswerHash = Authentication.hash(answer);
       try {
         await UserModel.create({
           username: username,
-          passwordHash: hash.hashedPassword,
+          passwordHash: hash.hash,
           salt: hash.salt,
           securityQuestion: question,
-          securityAnswer: answer
+          securityAnswerHash: securityAnswerHash.hash,
+          securityAnswerSalt: securityAnswerHash.salt
         });
         res.sendStatus(201);
       } catch (e) {
@@ -151,8 +153,13 @@ export class Authentication {
           return;
         }
         const hash = Authentication.hash(password, user.salt);
-        if (hash.hashedPassword === user.passwordHash) {
-          this.createToken({ username: username }, '10h', res);
+        if (hash.hash === user.passwordHash) {
+          try {
+            const token = await this.createToken({ username: username }, '10h');
+            res.json({ token: token });
+          } catch (e) {
+            res.status(e.code).json(Utils.createMessageJson(e.message));
+          }
         } else {
           res
             .status(401)
@@ -188,7 +195,52 @@ export class Authentication {
             .json(Utils.createMessageJson(ResponseEnum.UserAlreadyExists));
           return;
         }
-        this.createToken({ username: username }, '5h', res);
+        try {
+          const token = await this.createToken({ username: username }, '5h');
+          res.json({ token: token });
+        } catch (e) {
+          res.status(e.code).json(Utils.createMessageJson(e.message));
+        }
+      } catch (e) {
+        res
+          .status(500)
+          .json(
+            Utils.createMessageJson(
+              e.errors[0]?.message ?? ResponseEnum.UnknownError
+            )
+          );
+      }
+    });
+
+    this.router.post('/auth/recovery', async (req, res) => {
+      const resUsername = this.validateUsername(req.body.username);
+      if (resUsername !== ResponseEnum.OK) {
+        res
+          .status(resUsername.code)
+          .send(Utils.createMessageJson(resUsername.message));
+        return;
+      }
+
+      const username = req.body.username.trim();
+
+      try {
+        const user = await UserModel.findOne({ where: { username: username } });
+        if (user === null) {
+          const resPair = Utils.getResponsePair(ResponseEnum.UserNotExists);
+          res
+            .status(resPair.code)
+            .json(Utils.createMessageJson(resPair.message));
+          return;
+        }
+        try {
+          const token = await this.createToken(
+            { username: username, recovery: true },
+            '10m'
+          );
+          res.json({ question: user.securityQuestion, token: token });
+        } catch (e) {
+          res.status(e.code).json(Utils.createMessageJson(e.message));
+        }
       } catch (e) {
         res
           .status(500)
@@ -201,21 +253,20 @@ export class Authentication {
     });
   }
 
-  private createToken(data: object, duration: string | number, res: Response) {
-    jwt.sign(
-      data,
-      config.secretKey,
-      { expiresIn: duration },
-      (err: any, token: any) => {
-        if (err) {
-          res
-            .status(500)
-            .send(Utils.createMessageJson(ResponseEnum.TokenCreationError));
-          return;
+  private createToken(data: object, duration: string | number): Promise<any> {
+    return new Promise((res, rej) => {
+      jwt.sign(
+        data,
+        config.secretKey,
+        { expiresIn: duration },
+        (err: any, token: any) => {
+          if (err) {
+            rej(Utils.getResponsePair(ResponseEnum.TokenCreationError));
+          }
+          res(token);
         }
-        res.json({ token: token });
-      }
-    );
+      );
+    });
   }
 
   private validatePassword(password: any): ResponsePair | ResponseEnum.OK {

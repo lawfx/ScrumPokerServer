@@ -54,6 +54,6 @@ export interface RoomDestructionMessage {
 }
 
 export interface Hash {
-  hashedPassword: string;
+  hash: string;
   salt: string;
 }

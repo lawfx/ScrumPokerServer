@@ -29,8 +29,12 @@ UserModel.init(
       type: new DataTypes.STRING(100),
       allowNull: false
     },
-    securityAnswer: {
-      type: new DataTypes.STRING(20),
+    securityAnswerHash: {
+      type: new DataTypes.STRING(128),
+      allowNull: false
+    },
+    securityAnswerSalt: {
+      type: new DataTypes.STRING(128),
       allowNull: false
     }
   },
