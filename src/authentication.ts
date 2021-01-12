@@ -10,6 +10,9 @@ import { ResponseEnum } from './enums';
 
 export class Authentication {
   private static readonly SALT_ROUNDS = 20;
+  private readonly RECOVERY_TOKEN_TIMEOUT = '10m';
+  private readonly LOGIN_TOKEN_TIMEOUT = '10h';
+  private readonly LOGIN_GUEST_TOKEN_TIMEOUT = '5h';
   private router: Router;
 
   constructor() {
@@ -41,6 +44,12 @@ export class Authentication {
           console.error(err);
           return rej();
         }
+        if (authData.recovery) {
+          console.error(
+            `[${authData.username}] Cannot accept websocket connection with a recovery token`
+          );
+          return rej();
+        }
 
         return res(authData.username);
       });
@@ -57,6 +66,13 @@ export class Authentication {
     const bearerToken = bearer[1];
     jwt.verify(bearerToken, config.secretKey, (err: any, authData: any) => {
       if (err) {
+        res.sendStatus(401);
+        return;
+      }
+      if (authData.recovery) {
+        console.error(
+          `[${authData.username}] Cannot accept request with a recovery token`
+        );
         res.sendStatus(401);
         return;
       }
@@ -155,7 +171,10 @@ export class Authentication {
         const hash = Authentication.hash(password, user.salt);
         if (hash.hash === user.passwordHash) {
           try {
-            const token = await this.createToken({ username: username }, '10h');
+            const token = await this.createToken(
+              { username: username },
+              this.LOGIN_TOKEN_TIMEOUT
+            );
             res.json({ token: token });
           } catch (e) {
             res.status(e.code).json(Utils.createMessageJson(e.message));
@@ -196,7 +215,10 @@ export class Authentication {
           return;
         }
         try {
-          const token = await this.createToken({ username: username }, '5h');
+          const token = await this.createToken(
+            { username: username },
+            this.LOGIN_GUEST_TOKEN_TIMEOUT
+          );
           res.json({ token: token });
         } catch (e) {
           res.status(e.code).json(Utils.createMessageJson(e.message));
@@ -235,7 +257,7 @@ export class Authentication {
         try {
           const token = await this.createToken(
             { username: username, recovery: true },
-            '10m'
+            this.RECOVERY_TOKEN_TIMEOUT
           );
           res.json({ question: user.securityQuestion, token: token });
         } catch (e) {
