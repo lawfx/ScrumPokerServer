@@ -33,3 +33,8 @@ export enum UserRole {
   Spectator = 'spectator',
   Unknown = 'unknown'
 }
+
+export enum PasswordRecoveryState {
+  Requested,
+  Answered
+}

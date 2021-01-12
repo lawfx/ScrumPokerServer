@@ -7,7 +7,8 @@ class UserModel extends Model {
   public passwordHash!: string;
   public salt!: string;
   public securityQuestion!: string;
-  public securityAnswer!: string;
+  public securityAnswerHash!: string;
+  public securityAnswerSalt!: string;
 }
 
 UserModel.init(

@@ -6,7 +6,7 @@ import config from './config.json';
 import { Utils } from './utils';
 import jwt from 'jsonwebtoken';
 import { IncomingMessage } from 'http';
-import { ResponseEnum } from './enums';
+import { PasswordRecoveryState, ResponseEnum } from './enums';
 
 export class Authentication {
   private static readonly SALT_ROUNDS = 20;
@@ -80,6 +80,32 @@ export class Authentication {
       res.locals.username = authData.username;
       next();
     });
+  }
+
+  private verifyRecoveryToken(recoveryState: PasswordRecoveryState) {
+    return function (req: IncomingMessage, res: Response, next: NextFunction) {
+      const bearerHeader = req.headers['authorization'];
+      if (bearerHeader === undefined) {
+        res.sendStatus(401);
+        return;
+      }
+      const bearer = bearerHeader.split(' ');
+      const bearerToken = bearer[1];
+      jwt.verify(bearerToken, config.secretKey, (err: any, authData: any) => {
+        if (err) {
+          res.sendStatus(401);
+          return;
+        }
+        if (authData.recovery !== recoveryState) {
+          console.error(`[${authData.username}] Wrong recovery state`);
+          res.sendStatus(401);
+          return;
+        }
+
+        res.locals.username = authData.username;
+        next();
+      });
+    };
   }
 
   private setupRoutes() {
@@ -248,7 +274,7 @@ export class Authentication {
       try {
         const user = await UserModel.findOne({ where: { username: username } });
         if (user === null) {
-          const resPair = Utils.getResponsePair(ResponseEnum.UserNotExists);
+          const resPair = Utils.getResponsePair(ResponseEnum.WrongCredentials);
           res
             .status(resPair.code)
             .json(Utils.createMessageJson(resPair.message));
@@ -256,7 +282,7 @@ export class Authentication {
         }
         try {
           const token = await this.createToken(
-            { username: username, recovery: true },
+            { username: username, recovery: PasswordRecoveryState.Requested },
             this.RECOVERY_TOKEN_TIMEOUT
           );
           res.json({ question: user.securityQuestion, token: token });
@@ -273,6 +299,67 @@ export class Authentication {
           );
       }
     });
+
+    this.router.post(
+      '/auth/recovery/answer',
+      this.verifyRecoveryToken(PasswordRecoveryState.Requested),
+      async (req, res) => {
+        const username = res.locals.username;
+        const resSecAnswer = this.validateSecurityAnswer(
+          req.body.security_answer
+        );
+        if (resSecAnswer !== ResponseEnum.OK) {
+          res
+            .status(resSecAnswer.code)
+            .send(Utils.createMessageJson(resSecAnswer.message));
+          return;
+        }
+
+        const answer = req.body.security_answer.trim();
+
+        try {
+          const user = await UserModel.findOne({
+            where: { username: username }
+          });
+          if (user === null) {
+            const resPair = Utils.getResponsePair(
+              ResponseEnum.WrongCredentials
+            );
+            res
+              .status(resPair.code)
+              .json(Utils.createMessageJson(resPair.message));
+            return;
+          }
+          const hash = Authentication.hash(answer, user.securityAnswerSalt);
+          if (hash.hash === user.securityAnswerHash) {
+            try {
+              const token = await this.createToken(
+                {
+                  username: username,
+                  recovery: PasswordRecoveryState.Answered
+                },
+                this.RECOVERY_TOKEN_TIMEOUT
+              );
+              res.json({ token: token });
+            } catch (e) {
+              res.status(e.code).json(Utils.createMessageJson(e.message));
+            }
+          } else {
+            res
+              .status(401)
+              .json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
+          }
+        } catch (e) {
+          res
+            .status(500)
+            .json(
+              Utils.createMessageJson(
+                e.errors[0]?.message ?? ResponseEnum.UnknownError
+              )
+            );
+        }
+      }
+    );
   }
 
   private createToken(data: object, duration: string | number): Promise<any> {
