@@ -24,7 +24,8 @@ export enum ResponseEnum {
   SecurityQuestionTooLong = 'Error.SecurityQuestionMoreThan100Chars',
   SecurityAnswerEmpty = 'Error.SecurityAnswerEmpty',
   SecurityAnswerTooLong = 'Error.SecurityAnswerMoreThan20Chars',
-  UserNotExists = 'Error.UserNotExists'
+  UserNotExists = 'Error.UserNotExists',
+  WrongSecurityAnswer = 'Error.WrongSecurityAnswer'
 }
 
 export enum UserRole {

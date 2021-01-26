@@ -106,6 +106,10 @@ export class Utils {
         pair.code = 404;
         break;
       }
+      case ResponseEnum.WrongSecurityAnswer: {
+        pair.code = 400;
+        break;
+      }
       default: {
         pair.code = 400;
         console.error(responseMessage);

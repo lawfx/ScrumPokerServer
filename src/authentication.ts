@@ -220,7 +220,7 @@ export class Authentication {
       try {
         const user = await UserModel.findOne({ where: { username: username } });
         if (user === null) {
-          const resPair = Utils.getResponsePair(ResponseEnum.WrongCredentials);
+          const resPair = Utils.getResponsePair(ResponseEnum.UserNotExists);
           res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
           return;
         }
@@ -250,7 +250,7 @@ export class Authentication {
           where: { username: username }
         });
         if (user === null) {
-          const resPair = Utils.getResponsePair(ResponseEnum.WrongCredentials);
+          const resPair = Utils.getResponsePair(ResponseEnum.UserNotExists);
           res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
           return;
         }
@@ -269,7 +269,7 @@ export class Authentication {
             res.status(e.code).json(Utils.createMessageJson(e.message));
           }
         } else {
-          res.status(401).json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
+          res.status(401).json(Utils.createMessageJson(ResponseEnum.WrongSecurityAnswer));
         }
       } catch (e) {
         res.status(500).json(Utils.createMessageJson(e.errors[0]?.message ?? ResponseEnum.UnknownError));
