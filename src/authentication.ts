@@ -45,9 +45,7 @@ export class Authentication {
           return rej();
         }
         if (authData.recovery) {
-          console.error(
-            `[${authData.username}] Cannot accept websocket connection with a recovery token`
-          );
+          console.error(`[${authData.username}] Cannot accept websocket connection with a recovery token`);
           return rej();
         }
 
@@ -70,9 +68,7 @@ export class Authentication {
         return;
       }
       if (authData.recovery) {
-        console.error(
-          `[${authData.username}] Cannot accept request with a recovery token`
-        );
+        console.error(`[${authData.username}] Cannot accept request with a recovery token`);
         res.sendStatus(401);
         return;
       }
@@ -112,31 +108,19 @@ export class Authentication {
     this.router.post('/auth/register', async (req, res) => {
       const resUsername = this.validateUsername(req.body.username);
       const resPassword = this.validatePassword(req.body.password);
-      const resSecQuestion = this.validateSecurityQuestion(
-        req.body.security_question
-      );
-      const resSecAnswer = this.validateSecurityAnswer(
-        req.body.security_answer
-      );
+      const resSecQuestion = this.validateSecurityQuestion(req.body.security_question);
+      const resSecAnswer = this.validateSecurityAnswer(req.body.security_answer);
       if (resUsername !== ResponseEnum.OK) {
-        res
-          .status(resUsername.code)
-          .send(Utils.createMessageJson(resUsername.message));
+        res.status(resUsername.code).send(Utils.createMessageJson(resUsername.message));
         return;
       } else if (resPassword !== ResponseEnum.OK) {
-        res
-          .status(resPassword.code)
-          .send(Utils.createMessageJson(resPassword.message));
+        res.status(resPassword.code).send(Utils.createMessageJson(resPassword.message));
         return;
       } else if (resSecQuestion !== ResponseEnum.OK) {
-        res
-          .status(resSecQuestion.code)
-          .send(Utils.createMessageJson(resSecQuestion.message));
+        res.status(resSecQuestion.code).send(Utils.createMessageJson(resSecQuestion.message));
         return;
       } else if (resSecAnswer !== ResponseEnum.OK) {
-        res
-          .status(resSecAnswer.code)
-          .send(Utils.createMessageJson(resSecAnswer.message));
+        res.status(resSecAnswer.code).send(Utils.createMessageJson(resSecAnswer.message));
         return;
       }
 
@@ -158,13 +142,7 @@ export class Authentication {
         });
         res.sendStatus(201);
       } catch (e) {
-        res
-          .status(500)
-          .json(
-            Utils.createMessageJson(
-              e.errors[0]?.message ?? ResponseEnum.UnknownError
-            )
-          );
+        res.status(500).json(Utils.createMessageJson(e.errors[0]?.message ?? ResponseEnum.UnknownError));
       }
     });
 
@@ -172,14 +150,10 @@ export class Authentication {
       const resUsername = this.validateUsername(req.body.username);
       const resPassword = this.validatePassword(req.body.password);
       if (resUsername !== ResponseEnum.OK) {
-        res
-          .status(resUsername.code)
-          .send(Utils.createMessageJson(resUsername.message));
+        res.status(resUsername.code).send(Utils.createMessageJson(resUsername.message));
         return;
       } else if (resPassword !== ResponseEnum.OK) {
-        res
-          .status(resPassword.code)
-          .send(Utils.createMessageJson(resPassword.message));
+        res.status(resPassword.code).send(Utils.createMessageJson(resPassword.message));
         return;
       }
 
@@ -189,44 +163,29 @@ export class Authentication {
       try {
         const user = await UserModel.findOne({ where: { username: username } });
         if (user === null) {
-          res
-            .status(401)
-            .json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
+          res.status(401).json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
           return;
         }
         const hash = Authentication.hash(password, user.salt);
         if (hash.hash === user.passwordHash) {
           try {
-            const token = await this.createToken(
-              { username: username },
-              this.LOGIN_TOKEN_TIMEOUT
-            );
+            const token = await this.createToken({ username: username }, this.LOGIN_TOKEN_TIMEOUT);
             res.json({ token: token });
           } catch (e) {
             res.status(e.code).json(Utils.createMessageJson(e.message));
           }
         } else {
-          res
-            .status(401)
-            .json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
+          res.status(401).json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
         }
       } catch (e) {
-        res
-          .status(500)
-          .json(
-            Utils.createMessageJson(
-              e.errors[0]?.message ?? ResponseEnum.UnknownError
-            )
-          );
+        res.status(500).json(Utils.createMessageJson(e.errors[0]?.message ?? ResponseEnum.UnknownError));
       }
     });
 
     this.router.post('/auth/login/guest', async (req, res) => {
       const resUsername = this.validateUsername(req.body.username);
       if (resUsername !== ResponseEnum.OK) {
-        res
-          .status(resUsername.code)
-          .send(Utils.createMessageJson(resUsername.message));
+        res.status(resUsername.code).send(Utils.createMessageJson(resUsername.message));
         return;
       }
 
@@ -235,37 +194,24 @@ export class Authentication {
       try {
         const user = await UserModel.findOne({ where: { username: username } });
         if (user !== null) {
-          res
-            .status(409)
-            .json(Utils.createMessageJson(ResponseEnum.UserAlreadyExists));
+          res.status(409).json(Utils.createMessageJson(ResponseEnum.UserAlreadyExists));
           return;
         }
         try {
-          const token = await this.createToken(
-            { username: username },
-            this.LOGIN_GUEST_TOKEN_TIMEOUT
-          );
+          const token = await this.createToken({ username: username }, this.LOGIN_GUEST_TOKEN_TIMEOUT);
           res.json({ token: token });
         } catch (e) {
           res.status(e.code).json(Utils.createMessageJson(e.message));
         }
       } catch (e) {
-        res
-          .status(500)
-          .json(
-            Utils.createMessageJson(
-              e.errors[0]?.message ?? ResponseEnum.UnknownError
-            )
-          );
+        res.status(500).json(Utils.createMessageJson(e.errors[0]?.message ?? ResponseEnum.UnknownError));
       }
     });
 
     this.router.post('/auth/recovery', async (req, res) => {
       const resUsername = this.validateUsername(req.body.username);
       if (resUsername !== ResponseEnum.OK) {
-        res
-          .status(resUsername.code)
-          .send(Utils.createMessageJson(resUsername.message));
+        res.status(resUsername.code).send(Utils.createMessageJson(resUsername.message));
         return;
       }
 
@@ -275,106 +221,94 @@ export class Authentication {
         const user = await UserModel.findOne({ where: { username: username } });
         if (user === null) {
           const resPair = Utils.getResponsePair(ResponseEnum.WrongCredentials);
-          res
-            .status(resPair.code)
-            .json(Utils.createMessageJson(resPair.message));
+          res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
           return;
         }
         try {
-          const token = await this.createToken(
-            { username: username, recovery: PasswordRecoveryState.Requested },
-            this.RECOVERY_TOKEN_TIMEOUT
-          );
+          const token = await this.createToken({ username: username, recovery: PasswordRecoveryState.Requested }, this.RECOVERY_TOKEN_TIMEOUT);
           res.json({ question: user.securityQuestion, token: token });
         } catch (e) {
           res.status(e.code).json(Utils.createMessageJson(e.message));
         }
       } catch (e) {
-        res
-          .status(500)
-          .json(
-            Utils.createMessageJson(
-              e.errors[0]?.message ?? ResponseEnum.UnknownError
-            )
-          );
+        res.status(500).json(Utils.createMessageJson(e.errors[0]?.message ?? ResponseEnum.UnknownError));
       }
     });
 
-    this.router.post(
-      '/auth/recovery/answer',
-      this.verifyRecoveryToken(PasswordRecoveryState.Requested),
-      async (req, res) => {
-        const username = res.locals.username;
-        const resSecAnswer = this.validateSecurityAnswer(
-          req.body.security_answer
-        );
-        if (resSecAnswer !== ResponseEnum.OK) {
-          res
-            .status(resSecAnswer.code)
-            .send(Utils.createMessageJson(resSecAnswer.message));
+    this.router.post('/auth/recovery/answer', this.verifyRecoveryToken(PasswordRecoveryState.Requested), async (req, res) => {
+      const username = res.locals.username;
+      const resSecAnswer = this.validateSecurityAnswer(req.body.security_answer);
+      if (resSecAnswer !== ResponseEnum.OK) {
+        res.status(resSecAnswer.code).send(Utils.createMessageJson(resSecAnswer.message));
+        return;
+      }
+
+      const answer = req.body.security_answer.trim();
+
+      try {
+        const user = await UserModel.findOne({
+          where: { username: username }
+        });
+        if (user === null) {
+          const resPair = Utils.getResponsePair(ResponseEnum.WrongCredentials);
+          res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
           return;
         }
-
-        const answer = req.body.security_answer.trim();
-
-        try {
-          const user = await UserModel.findOne({
-            where: { username: username }
-          });
-          if (user === null) {
-            const resPair = Utils.getResponsePair(
-              ResponseEnum.WrongCredentials
+        const hash = Authentication.hash(answer, user.securityAnswerSalt);
+        if (hash.hash === user.securityAnswerHash) {
+          try {
+            const token = await this.createToken(
+              {
+                username: username,
+                recovery: PasswordRecoveryState.Answered
+              },
+              this.RECOVERY_TOKEN_TIMEOUT
             );
-            res
-              .status(resPair.code)
-              .json(Utils.createMessageJson(resPair.message));
-            return;
+            res.json({ token: token });
+          } catch (e) {
+            res.status(e.code).json(Utils.createMessageJson(e.message));
           }
-          const hash = Authentication.hash(answer, user.securityAnswerSalt);
-          if (hash.hash === user.securityAnswerHash) {
-            try {
-              const token = await this.createToken(
-                {
-                  username: username,
-                  recovery: PasswordRecoveryState.Answered
-                },
-                this.RECOVERY_TOKEN_TIMEOUT
-              );
-              res.json({ token: token });
-            } catch (e) {
-              res.status(e.code).json(Utils.createMessageJson(e.message));
-            }
-          } else {
-            res
-              .status(401)
-              .json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
-          }
-        } catch (e) {
-          res
-            .status(500)
-            .json(
-              Utils.createMessageJson(
-                e.errors[0]?.message ?? ResponseEnum.UnknownError
-              )
-            );
+        } else {
+          res.status(401).json(Utils.createMessageJson(ResponseEnum.WrongCredentials));
         }
+      } catch (e) {
+        res.status(500).json(Utils.createMessageJson(e.errors[0]?.message ?? ResponseEnum.UnknownError));
       }
-    );
+    });
+
+    this.router.patch('/auth/recovery/password', this.verifyRecoveryToken(PasswordRecoveryState.Answered), async (req, res) => {
+      const username = res.locals.username;
+      const resPassword = this.validatePassword(req.body.password);
+      if (resPassword !== ResponseEnum.OK) {
+        res.status(resPassword.code).send(Utils.createMessageJson(resPassword.message));
+        return;
+      }
+
+      const password = req.body.password.trim();
+      const hash = Authentication.hash(password);
+      try {
+        await UserModel.update(
+          {
+            passwordHash: hash.hash,
+            salt: hash.salt
+          },
+          { where: { username: username } }
+        );
+        res.sendStatus(200);
+      } catch (e) {
+        res.status(500).json(Utils.createMessageJson(e.errors[0]?.message ?? ResponseEnum.UnknownError));
+      }
+    });
   }
 
   private createToken(data: object, duration: string | number): Promise<any> {
     return new Promise((res, rej) => {
-      jwt.sign(
-        data,
-        config.secretKey,
-        { expiresIn: duration },
-        (err: any, token: any) => {
-          if (err) {
-            rej(Utils.getResponsePair(ResponseEnum.TokenCreationError));
-          }
-          res(token);
+      jwt.sign(data, config.secretKey, { expiresIn: duration }, (err: any, token: any) => {
+        if (err) {
+          rej(Utils.getResponsePair(ResponseEnum.TokenCreationError));
         }
-      );
+        res(token);
+      });
     });
   }
 
@@ -402,9 +336,7 @@ export class Authentication {
     return ResponseEnum.OK;
   }
 
-  private validateSecurityQuestion(
-    question: any
-  ): ResponsePair | ResponseEnum.OK {
+  private validateSecurityQuestion(question: any): ResponsePair | ResponseEnum.OK {
     if (typeof question !== 'string') {
       return Utils.getResponsePair(ResponseEnum.MalformedRequest);
     }
