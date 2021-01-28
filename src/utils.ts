@@ -98,10 +98,6 @@ export class Utils {
         pair.code = 400;
         break;
       }
-      case ResponseEnum.SecurityAnswerTooLong: {
-        pair.code = 403;
-        break;
-      }
       case ResponseEnum.UserNotExists: {
         pair.code = 404;
         break;

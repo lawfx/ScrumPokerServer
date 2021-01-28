@@ -356,8 +356,6 @@ export class Authentication {
     answer = answer.trim();
     if (answer.length === 0) {
       return Utils.getResponsePair(ResponseEnum.SecurityAnswerEmpty);
-    } else if (answer.length > 20) {
-      return Utils.getResponsePair(ResponseEnum.SecurityAnswerTooLong);
     }
     return ResponseEnum.OK;
   }

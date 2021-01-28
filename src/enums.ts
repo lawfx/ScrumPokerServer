@@ -23,7 +23,6 @@ export enum ResponseEnum {
   SecurityQuestionEmpty = 'Error.SecurityQuestionEmpty',
   SecurityQuestionTooLong = 'Error.SecurityQuestionMoreThan100Chars',
   SecurityAnswerEmpty = 'Error.SecurityAnswerEmpty',
-  SecurityAnswerTooLong = 'Error.SecurityAnswerMoreThan20Chars',
   UserNotExists = 'Error.UserNotExists',
   WrongSecurityAnswer = 'Error.WrongSecurityAnswer'
 }
