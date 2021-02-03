@@ -225,14 +225,12 @@ export class Room {
     roomStatusTaskJson.id = this.task?.getId() ?? '';
     roomStatusTaskJson.estimates = [];
 
-    if (includeEstimates) {
-      this.task?.getEstimates().forEach((e) => {
-        const roomStatusTaskEstimateJson = {} as RoomStatusTaskEstimateJSON;
-        roomStatusTaskEstimateJson.name = e.getUser().getName();
-        roomStatusTaskEstimateJson.estimate = e.getEstimate();
-        roomStatusTaskJson.estimates.push(roomStatusTaskEstimateJson);
-      });
-    }
+    this.task?.getEstimates().forEach((e) => {
+      const roomStatusTaskEstimateJson = {} as RoomStatusTaskEstimateJSON;
+      roomStatusTaskEstimateJson.name = e.getUser().getName();
+      roomStatusTaskEstimateJson.estimate = includeEstimates ? e.getEstimate() : -1;
+      roomStatusTaskJson.estimates.push(roomStatusTaskEstimateJson);
+    });
 
     return roomStatusJson;
   }
