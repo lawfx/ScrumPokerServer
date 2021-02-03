@@ -25,6 +25,8 @@ export class Room {
 
   private task?: Task;
 
+  private _isBeingDestroyed = false;
+
   constructor(name: string, admin: User) {
     console.log(`[Room: ${name}] Created by ${admin.getName()}`);
     this.name = name;
@@ -62,9 +64,7 @@ export class Room {
       if (this.destructionTimeoutID !== undefined) {
         clearTimeout(this.destructionTimeoutID);
         this.destructionTimeoutID = undefined;
-        console.log(
-          `[Room: ${this.name}] Destruction aborted because room will be destroyed immediately`
-        );
+        console.log(`[Room: ${this.name}] Destruction aborted because room will be destroyed immediately`);
       }
       const roomDestructionMessage = {} as RoomDestructionMessage;
       roomDestructionMessage.room = this;
@@ -78,16 +78,10 @@ export class Room {
       console.error(`[Room: ${this.name}] Task name can't be empty`);
       return;
     } else if (taskId.length > 20) {
-      console.error(
-        `[Room: ${this.name}] Task name can't exceed 20 characters`
-      );
+      console.error(`[Room: ${this.name}] Task name can't exceed 20 characters`);
       return;
     } else if (!this.isAdmin(user)) {
-      console.error(
-        `[Room: ${
-          this.name
-        }] ${user.getName()} tried to send a task estimate request but he isn't an admin.`
-      );
+      console.error(`[Room: ${this.name}] ${user.getName()} tried to send a task estimate request but he isn't an admin.`);
       return;
     }
     this.task = new Task(taskId);
@@ -136,18 +130,20 @@ export class Room {
     return this.roomEmitter;
   }
 
+  isBeingDestroyed(): boolean {
+    return this._isBeingDestroyed;
+  }
+
+  setToDestroy() {
+    this._isBeingDestroyed = true;
+  }
+
   broadcastRoomStatus() {
     console.log(`[Room: ${this.name}] Broadcasting room status`);
     const roomStatus = this.getRoomStatusJSON();
     const roomStatusNoEstimates = this.getRoomStatusJSON(false);
-    [...this.admins, ...this.spectators].forEach((u) =>
-      u.sendMessage(roomStatus)
-    );
-    this.estimators.forEach((u) =>
-      u.sendMessage(
-        this.task?.hasEstimated(u) ? roomStatus : roomStatusNoEstimates
-      )
-    );
+    [...this.admins, ...this.spectators].forEach((u) => u.sendMessage(roomStatus));
+    this.estimators.forEach((u) => u.sendMessage(this.task?.hasEstimated(u) ? roomStatus : roomStatusNoEstimates));
   }
 
   private addAdmin(admin: User) {
@@ -168,11 +164,7 @@ export class Room {
     this.removeFromArray(admin, this.admins);
     this.broadcastRoomStatus();
     if (this.admins.length === 0) {
-      console.log(
-        `[Room: ${this.name}] To be destroyed in ${
-          this.DESTRUCTION_TIMEOUT / 1000
-        }s`
-      );
+      console.log(`[Room: ${this.name}] To be destroyed in ${this.DESTRUCTION_TIMEOUT / 1000}s`);
       this.destructionTimeoutID = setTimeout(() => {
         const roomDestructionMessage = {} as RoomDestructionMessage;
         roomDestructionMessage.room = this;
@@ -184,32 +176,24 @@ export class Room {
 
   private addEstimator(estimator: User) {
     this.estimators.push(estimator);
-    console.log(
-      `[Room: ${this.name}] ${estimator.getName()} added as estimator`
-    );
+    console.log(`[Room: ${this.name}] ${estimator.getName()} added as estimator`);
     this.broadcastRoomStatus();
   }
 
   private removeEstimator(estimator: User) {
-    console.log(
-      `[Room: ${this.name}] Removing estimator ${estimator.getName()}`
-    );
+    console.log(`[Room: ${this.name}] Removing estimator ${estimator.getName()}`);
     this.removeFromArray(estimator, this.estimators);
     this.broadcastRoomStatus();
   }
 
   private addSpectator(spectator: User) {
     this.spectators.push(spectator);
-    console.log(
-      `[Room: ${this.name}] ${spectator.getName()} added as spectator`
-    );
+    console.log(`[Room: ${this.name}] ${spectator.getName()} added as spectator`);
     this.broadcastRoomStatus();
   }
 
   private removeSpectator(spectator: User) {
-    console.log(
-      `[Room: ${this.name}] Removing spectator ${spectator.getName()}`
-    );
+    console.log(`[Room: ${this.name}] Removing spectator ${spectator.getName()}`);
     this.removeFromArray(spectator, this.spectators);
     this.broadcastRoomStatus();
   }
@@ -235,12 +219,8 @@ export class Room {
     roomStatusUsersJson.estimators = [];
     roomStatusUsersJson.spectators = [];
     this.admins.forEach((a) => roomStatusUsersJson.admins.push(a.getName()));
-    this.estimators.forEach((u) =>
-      roomStatusUsersJson.estimators.push(u.getName())
-    );
-    this.spectators.forEach((u) =>
-      roomStatusUsersJson.spectators.push(u.getName())
-    );
+    this.estimators.forEach((u) => roomStatusUsersJson.estimators.push(u.getName()));
+    this.spectators.forEach((u) => roomStatusUsersJson.spectators.push(u.getName()));
 
     roomStatusTaskJson.id = this.task?.getId() ?? '';
     roomStatusTaskJson.estimates = [];

@@ -1,12 +1,7 @@
 import { Room } from './room';
 import { User } from './user';
 import webSocket from 'ws';
-import {
-  ErrorJSON,
-  LobbyStatusJSON,
-  LobbyStatusContentJSON,
-  RoomDestructionMessage
-} from './models';
+import { ErrorJSON, LobbyStatusJSON, LobbyStatusContentJSON, RoomDestructionMessage } from './models';
 import { DESTROY_ROOM } from './event-types';
 import { Router } from 'express';
 import { ResponseEnum, UserRole } from './enums';
@@ -48,9 +43,7 @@ export class Lobby {
     if (user === undefined) return;
     const room = user.getRoom(this.rooms);
     if (room === undefined) {
-      console.error(
-        `${user.getName()} requested a task estimate but is not in a room`
-      );
+      console.error(`${user.getName()} requested a task estimate but is not in a room`);
       return;
     }
     room.createTask(user, taskId?.trim());
@@ -66,8 +59,7 @@ export class Lobby {
     } else if (typeof estimate !== 'number') {
       console.error(`${user.getName()} sent invalid estimate`);
       return;
-    }
-    else if(room.isSpectator(user)){
+    } else if (room.isSpectator(user)) {
       console.error(`${user.getName()} is a spectator. Estimate ignored...`);
       return;
     }
@@ -102,68 +94,46 @@ export class Lobby {
       }
     });
 
-    this.router.patch(
-      '/rooms/connect',
-      Authentication.verifyToken,
-      (req, res) => {
-        const username = res.locals.username;
-        const roomname = req.body.roomname;
-        const role: UserRole =
-          req.body.role === UserRole.Estimator
-            ? UserRole.Estimator
-            : req.body.role === UserRole.Spectator
-            ? UserRole.Spectator
-            : UserRole.Unknown;
-        let result;
-        if (typeof roomname !== 'string' || role === UserRole.Unknown) {
-          result = ResponseEnum.MalformedRequest;
-        } else {
-          result = this.connectToRoom(username, roomname?.trim(), role);
-        }
-        if (result === ResponseEnum.OK) {
-          res.sendStatus(200);
-        } else {
-          const resPair = Utils.getResponsePair(result);
-          res
-            .status(resPair.code)
-            .json(Utils.createMessageJson(resPair.message));
-        }
+    this.router.patch('/rooms/connect', Authentication.verifyToken, (req, res) => {
+      const username = res.locals.username;
+      const roomname = req.body.roomname;
+      const role: UserRole =
+        req.body.role === UserRole.Estimator ? UserRole.Estimator : req.body.role === UserRole.Spectator ? UserRole.Spectator : UserRole.Unknown;
+      let result;
+      if (typeof roomname !== 'string' || role === UserRole.Unknown) {
+        result = ResponseEnum.MalformedRequest;
+      } else {
+        result = this.connectToRoom(username, roomname?.trim(), role);
       }
-    );
+      if (result === ResponseEnum.OK) {
+        res.sendStatus(200);
+      } else {
+        const resPair = Utils.getResponsePair(result);
+        res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
+      }
+    });
 
-    this.router.patch(
-      '/rooms/disconnect',
-      Authentication.verifyToken,
-      (req, res) => {
-        const username = res.locals.username;
-        const result = this.disconnectFromRoom(username);
-        if (result === ResponseEnum.OK) {
-          res.sendStatus(200);
-        } else {
-          const resPair = Utils.getResponsePair(result);
-          res
-            .status(resPair.code)
-            .json(Utils.createMessageJson(resPair.message));
-        }
+    this.router.patch('/rooms/disconnect', Authentication.verifyToken, (req, res) => {
+      const username = res.locals.username;
+      const result = this.disconnectFromRoom(username);
+      if (result === ResponseEnum.OK) {
+        res.sendStatus(200);
+      } else {
+        const resPair = Utils.getResponsePair(result);
+        res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
       }
-    );
+    });
 
-    this.router.delete(
-      '/rooms/destroy',
-      Authentication.verifyToken,
-      (req, res) => {
-        const username = res.locals.username;
-        const result = this.destroyRoomOrderedByUser(username);
-        if (result === ResponseEnum.OK) {
-          res.sendStatus(200);
-        } else {
-          const resPair = Utils.getResponsePair(result);
-          res
-            .status(resPair.code)
-            .json(Utils.createMessageJson(resPair.message));
-        }
+    this.router.delete('/rooms/destroy', Authentication.verifyToken, (req, res) => {
+      const username = res.locals.username;
+      const result = this.destroyRoomOrderedByUser(username);
+      if (result === ResponseEnum.OK) {
+        res.sendStatus(200);
+      } else {
+        const resPair = Utils.getResponsePair(result);
+        res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
       }
-    );
+    });
   }
 
   private createUser(name: string): User | ResponseEnum {
@@ -183,12 +153,7 @@ export class Lobby {
   }
 
   private createRoom(username: string, roomName: string): ResponseEnum {
-    if (
-      username === undefined ||
-      username === null ||
-      roomName === undefined ||
-      roomName === null
-    ) {
+    if (username === undefined || username === null || roomName === undefined || roomName === null) {
       return ResponseEnum.MalformedRequest;
     }
 
@@ -207,35 +172,27 @@ export class Lobby {
     const room = new Room(roomName, user);
     // we don't need to delete the users from the room, because they are only referenced in there
     // so when we delete the room they are considered in no room
-    room
-      .getEmitter()
-      .on(DESTROY_ROOM, (roomDestructionMessage: RoomDestructionMessage) => {
-        if (
-          this.destroyRoom(
-            roomDestructionMessage.room,
-            roomDestructionMessage.reason
-          )
-        ) {
-          this.broadcastLobbyStatus();
-        }
-      });
+    room.getEmitter().on(DESTROY_ROOM, (roomDestructionMessage: RoomDestructionMessage) => {
+      this.destroyRoom(roomDestructionMessage.room, roomDestructionMessage.reason);
+    });
     this.rooms.push(room);
     this.broadcastLobbyStatus();
     return ResponseEnum.OK;
   }
 
-  private destroyRoom(room: Room, reason: string): boolean {
-    if (!this.roomExists(room.getName())) {
+  private destroyRoom(room: Room, reason: string) {
+    if (!this.roomExists(room.getName()) || room.isBeingDestroyed()) {
       // console.log(`[${room.getName()}] Room already destroyed`);
       return false;
     }
+    room.setToDestroy();
     console.log(`[${room.getName()}] Destroyed, reason: ${reason}`);
     room.getUsers().forEach((u) => {
       u.setLeftRoomReason(reason);
       room.removeUser(u);
     });
     this.removeFromArray(room, this.rooms);
-    return true;
+    this.broadcastLobbyStatus();
   }
 
   private destroyRoomOrderedByUser(username: string): ResponseEnum {
@@ -257,21 +214,11 @@ export class Lobby {
     //removing the user first so that he won't get the reason for destroying the room too
     room.removeUser(user);
     this.destroyRoom(room, 'Destroyed by admin');
-    this.broadcastLobbyStatus();
     return ResponseEnum.OK;
   }
 
-  private connectToRoom(
-    username: string,
-    roomname: string,
-    role: UserRole
-  ): ResponseEnum {
-    if (
-      username === undefined ||
-      username === null ||
-      roomname === undefined ||
-      roomname === null
-    ) {
+  private connectToRoom(username: string, roomname: string, role: UserRole): ResponseEnum {
+    if (username === undefined || username === null || roomname === undefined || roomname === null) {
       return ResponseEnum.MalformedRequest;
     }
 
@@ -308,9 +255,7 @@ export class Lobby {
 
   private broadcastLobbyStatus() {
     console.log('Broadcasting lobby status');
-    this.getFreeUsers().forEach((u) =>
-      u.sendMessage(this.getLobbyStatusJSON(u.getLeftRoomReason()))
-    );
+    this.getFreeUsers().forEach((u) => u.sendMessage(this.getLobbyStatusJSON(u.getLeftRoomReason())));
   }
 
   private getUserByWS(ws: webSocket): User | undefined {
