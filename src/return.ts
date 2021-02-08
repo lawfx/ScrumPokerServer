@@ -1,4 +1,4 @@
-export enum ResponseEnum {
+export enum Err {
   //lobby
 
   UserNotConnected = 'Error.UserNotConnected',
@@ -6,6 +6,8 @@ export enum ResponseEnum {
   UserNotAdmin = 'Error.UserNotAdmin',
   UserAlreadyInARoom = 'Error.UserAlreadyInARoom',
   UserNotInARoom = 'Error.UserNotInARoom',
+  NoTask = 'Error.NoTask',
+  UserAlreadyEstimated = 'Error.UserAlreadyEstimated',
   RoomnameEmpty = 'Error.RoomnameEmpty',
   RoomnameTooLong = 'Error.RoomnameMoreThan20Chars',
   RoomNotExists = 'Error.RoomNotExists',
@@ -25,13 +27,6 @@ export enum ResponseEnum {
   SecurityAnswerEmpty = 'Error.SecurityAnswerEmpty',
   UserNotExists = 'Error.UserNotExists',
   WrongSecurityAnswer = 'Error.WrongSecurityAnswer'
-}
-
-export enum UserRole {
-  Admin = 'admin',
-  Estimator = 'estimator',
-  Spectator = 'spectator',
-  Unknown = 'unknown'
 }
 
 export enum PasswordRecoveryState {

@@ -1,5 +1,7 @@
 import { Room } from './room';
 import { Task } from './task';
+import { Err } from './return';
+import { Estimate } from './estimate';
 
 export class User {
   private name: string;
@@ -11,10 +13,10 @@ export class User {
   }
 
   /**
-   * Returns undefined if the user is already in a room, the room if it's created successfully
+   * @throws {@link Err.UserAlreadyInARoom}
    */
-  createRoom(name: string): Room | undefined {
-    if (this.isAlreadyInRoom()) return undefined;
+  createRoom(name: string): Room {
+    if (this.isInRoom()) throw new Error(Err.UserAlreadyInARoom);
 
     const room = new Room(name, this);
     this.currentRoom = room;
@@ -23,23 +25,54 @@ export class User {
   }
 
   /**
-   * Returns false if the user is already in a room, true if he joins successfully
+   * @throws {@link Err.UserAlreadyInARoom}
    */
   joinRoom(room: Room, role: UserRole = UserRole.Estimator): boolean {
-    if (this.isAlreadyInRoom()) return false;
+    if (this.isInRoom()) throw new Error(Err.UserAlreadyInARoom);
     if (!room.addUser(this, role)) return false;
     this.currentRoom = room;
     return true;
   }
 
   /**
-   * Returns false if the user is not in a room, true if he leaves successfully
+   * @throws {@link Err.UserNotInARoom}
    */
   leaveRoom(): boolean {
-    if (!this.isAlreadyInRoom()) return false;
-    if (!this.currentRoom?.removeUser(this)) return false;
+    if (!this.isInRoom()) throw new Error(Err.UserNotInARoom);
+    if (!this.currentRoom!.removeUser(this)) return false;
     this.currentRoom = undefined;
     return true;
+  }
+
+  /**
+   * @throws {@link Err.UserNotInARoom}
+   * @throws {@link Err.UserNotAdmin}
+   * @param id task ID
+   */
+  createTask(id: string): Task {
+    if (!this.isInRoom()) throw new Error(Err.UserNotInARoom);
+    if (!this.isAdminInCurrentRoom()) throw new Error(Err.UserNotAdmin);
+    const task = new Task(id);
+    this.currentRoom!.assignTask(task);
+    return task;
+  }
+
+  /**
+   * @throws {@link Err.UserNotInARoom}
+   * @throws {@link Err.NoTask}
+   * @param estimate
+   */
+  estimate(estimate: number): Estimate {
+    if (!this.isInRoom()) throw new Error(Err.UserNotInARoom);
+
+    const task = this.currentRoom!.getTask();
+    if (task === undefined) throw new Error(Err.NoTask);
+
+    try {
+      return task.addEstimate(estimate, this);
+    } catch (e) {
+      throw e;
+    }
   }
 
   /**
@@ -63,7 +96,12 @@ export class User {
   //   return [...this.roomsAsAdmin.keys()];
   // }
 
-  private isAlreadyInRoom(): boolean {
+  private isAdminInCurrentRoom(): boolean {
+    if (!this.isInRoom()) return false;
+    return this.roomsAsAdmin.has(this.currentRoom!);
+  }
+
+  private isInRoom(): boolean {
     return this.currentRoom !== undefined;
   }
 }

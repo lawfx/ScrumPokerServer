@@ -1,14 +1,16 @@
+import { Task } from './task';
 import { User, UserRole } from './user';
 
 export class Room {
   private name: string;
   private users: Map<User, UserRole> = new Map();
+  private task?: Task;
   constructor(name: string, user: User) {
     this.name = name;
     this.addAdmin(user);
+    this.task = undefined;
   }
 
-  /** This should only be used by a ZUser */
   addUser(user: User, role: UserRole = UserRole.Estimator): boolean {
     switch (role) {
       case UserRole.Admin:
@@ -22,9 +24,13 @@ export class Room {
     }
   }
 
-  /** This should only be used by a ZUser */
   removeUser(user: User): boolean {
     return this.users.delete(user);
+  }
+
+  assignTask(task: Task): boolean {
+    this.task = task;
+    return true;
   }
 
   getAllUsers(): User[] {
@@ -44,6 +50,10 @@ export class Room {
   }
   getName(): string {
     return this.name;
+  }
+
+  getTask(): Task | undefined {
+    return this.task;
   }
 
   private addAdmin(user: User): boolean {
