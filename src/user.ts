@@ -26,22 +26,22 @@ export class User {
 
   /**
    * @throws {@link Err.UserAlreadyInARoom}
+   * @throws {@link RoomErr.AlreadyHasAdmin}
    */
-  joinRoom(room: Room, role: UserRole = UserRole.Estimator): boolean {
+  joinRoom(room: Room, role: UserRole = UserRole.Estimator) {
     if (this.isInRoom()) throw new Error(Err.UserAlreadyInARoom);
-    if (!room.addUser(this, role)) return false;
+    room.addUser(this, role);
     this.currentRoom = room;
-    return true;
   }
 
   /**
    * @throws {@link Err.UserNotInARoom}
+   * @throws {@link RoomErr.UserNotFoundInRoom}
    */
-  leaveRoom(): boolean {
+  leaveRoom() {
     if (!this.isInRoom()) throw new Error(Err.UserNotInARoom);
-    if (!this.currentRoom!.removeUser(this)) return false;
+    this.currentRoom!.removeUser(this);
     this.currentRoom = undefined;
-    return true;
   }
 
   /**

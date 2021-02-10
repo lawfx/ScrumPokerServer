@@ -29,6 +29,15 @@ export enum Err {
   WrongSecurityAnswer = 'Error.WrongSecurityAnswer'
 }
 
+export enum UserErr {
+  UnknownUserRole = 'UserError.UnknownUserRole'
+}
+
+export enum RoomErr {
+  AlreadyHasAdmin = 'RoomError.AlreadyHasAdmin',
+  UserNotFoundInRoom = 'RoomError.UserNotFoundInRoom'
+}
+
 export enum PasswordRecoveryState {
   Requested,
   Answered

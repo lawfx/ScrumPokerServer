@@ -1,3 +1,4 @@
+import { RoomErr, UserErr } from './return';
 import { Task } from './task';
 import { User, UserRole } from './user';
 
@@ -11,21 +12,31 @@ export class Room {
     this.task = undefined;
   }
 
-  addUser(user: User, role: UserRole = UserRole.Estimator): boolean {
+  /**
+   * @throws {@link UserErr.UnknownUserRole}
+   * @param user
+   * @param role
+   */
+  addUser(user: User, role: UserRole = UserRole.Estimator) {
     switch (role) {
       case UserRole.Admin:
-        return this.addAdmin(user);
+        this.addAdmin(user);
+        break;
       case UserRole.Estimator:
-        return this.addEstimator(user);
+        this.addEstimator(user);
+        break;
       case UserRole.Spectator:
-        return this.addSpectator(user);
+        this.addSpectator(user);
+        break;
       default:
-        return false;
+        throw new Error(UserErr.UnknownUserRole);
     }
   }
 
-  removeUser(user: User): boolean {
-    return this.users.delete(user);
+  removeUser(user: User) {
+    if (!this.users.delete(user)) {
+      throw new Error(RoomErr.UserNotFoundInRoom);
+    }
   }
 
   assignTask(task: Task): boolean {
@@ -48,6 +59,7 @@ export class Room {
   getSpectators(): User[] {
     return this.getUsersOfType(UserRole.Spectator);
   }
+
   getName(): string {
     return this.name;
   }
@@ -56,19 +68,23 @@ export class Room {
     return this.task;
   }
 
-  private addAdmin(user: User): boolean {
+  /**
+   * @throws {@link Err.AdminAlreadySet}
+   * @param user
+   */
+  private addAdmin(user: User) {
+    if (this.getUsersOfType(UserRole.Admin).length !== 0) {
+      throw new Error(RoomErr.AlreadyHasAdmin);
+    }
     this.users.set(user, UserRole.Admin);
-    return true;
   }
 
-  private addEstimator(user: User): boolean {
+  private addEstimator(user: User) {
     this.users.set(user, UserRole.Estimator);
-    return true;
   }
 
-  private addSpectator(user: User): boolean {
+  private addSpectator(user: User) {
     this.users.set(user, UserRole.Spectator);
-    return true;
   }
 
   private getUsersOfType(role: UserRole): User[] {

@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { Estimate } from '../estimate';
 import { Room } from '../room';
 import { User, UserRole } from '../user';
-import { Err } from './../return';
+import { Err, RoomErr } from './../return';
 
 describe('User', () => {
   describe('is created', () => {
@@ -32,11 +32,11 @@ describe('User', () => {
   });
 
   describe('joinRoom', () => {
-    it('should return true, update number of users in the room and current room is set correctly for the user', () => {
+    it('update number of users in the room and current room is set correctly for the user', () => {
       const user0 = new User('user0');
       const user1 = new User('user1');
       const room0 = user0.createRoom('room0')!;
-      expect(user1.joinRoom(room0)).to.be.true;
+      user1.joinRoom(room0);
       countUsersInRoom(room0, 2, 1, 1, 0);
       expect(user1.getCurrentRoom()).to.be.equal(room0);
       const user2 = new User('user2');
@@ -45,6 +45,15 @@ describe('User', () => {
       const user3 = new User('user3');
       user3.joinRoom(room0, UserRole.Spectator);
       countUsersInRoom(room0, 4, 1, 2, 1);
+    });
+
+    it('should throw AlreadyHasAdmin if an other admin tries to join, and the original admin should remain in the room', () => {
+      const user0 = new User('user0');
+      const room0 = user0.createRoom('room0')!;
+      const user1 = new User('user1');
+      expect(() => user1.joinRoom(room0, UserRole.Admin)).to.throw(RoomErr.AlreadyHasAdmin);
+      countUsersInRoom(room0!, 1, 1, 0, 0);
+      expect(room0!.getAdmins()[0]).to.be.equal(user0);
     });
 
     it('should throw UserAlreadyInARoom if the user is already in a room', () => {
@@ -57,10 +66,10 @@ describe('User', () => {
   });
 
   describe('leaveRoom', () => {
-    it('should return true, should update number of users in the room and unset current room from the user', () => {
+    it('should update number of users in the room and unset current room from the user', () => {
       const user0 = new User('user0');
       const room0 = user0.createRoom('room0')!;
-      expect(user0.leaveRoom()).to.be.true;
+      user0.leaveRoom();
       countUsersInRoom(room0, 0, 0, 0, 0);
       expect(user0.getCurrentRoom()).to.be.equal(undefined);
     });
