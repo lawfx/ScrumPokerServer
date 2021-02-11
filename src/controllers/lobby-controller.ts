@@ -8,28 +8,155 @@
 // import { Utils } from './utils';
 // import { Authentication } from './authentication';
 
-import { skramEmitter, SkramEvents } from './skram-emitter';
-import { User } from './user';
+import { Request, Response } from 'express';
+import { ValidationErr } from '../return';
+import SkramErrors from '../errors/skram-errors';
+import Room from '../skram/room';
+import { skramEmitter } from '../skram-emitter';
+import User from '../skram/user';
+import WebsocketEvents from '../websocket/websocket-events.enum';
+import { UserConnectedMsg, UserDisconnectedMsg } from '../websocket/websocket-messages.types';
+import GenericErrors from '../errors/generic-errors';
 
-export class Lobby {
-  private users: User[] = [];
+class Lobby {
+  private users: Map<string, User> = new Map();
+  private rooms: Room[] = [];
 
   constructor() {
-    skramEmitter.on(SkramEvents.UserConnected, (user: User) => {
-      this.addUserToLobby(user);
+    skramEmitter.on(WebsocketEvents.UserConnected, (msg: UserConnectedMsg) => {
+      this.createUser(msg);
     });
 
-    skramEmitter.on(SkramEvents.UserDisconnected, (user: User) => {
-      this.removeUserFromLobby(user);
+    skramEmitter.on(WebsocketEvents.UserDisconnected, (msg: UserDisconnectedMsg) => {
+      this.destroyUser(msg);
     });
   }
 
-  private addUserToLobby(user: User) {
-    this.users.push(user);
+  private createUser(msg: UserConnectedMsg) {
+    const user = new User(msg.username);
+    this.users.set(msg.uuid, user);
+    // TODO send lobby message
   }
 
-  private removeUserFromLobby(user: User) {
-    this.removeFromArray(user, this.users);
+  private destroyUser(msg: UserDisconnectedMsg) {
+    this.users.delete(msg.uuid);
+    // TODO remove from rooms etc
+  }
+
+  public createRoom(req: Request, res: Response) {
+    const username = res.locals.username;
+    try {
+      const roomname = this.validateRoomname(req.body.roomname);
+      if (!this.isRoomnameAvailable(roomname)) throw new Error(ValidationErr.RoomAlreadyExists);
+      const user = this.findUser(username);
+      user.createRoom(roomname);
+      res.sendStatus(201);
+    } catch (e) {
+      switch (e.message) {
+        case GenericErrors.MalformedRequest:
+          break;
+        case ValidationErr.RoomnameEmpty:
+          break;
+        case ValidationErr.RoomnameTooLong:
+          break;
+        case ValidationErr.RoomAlreadyExists:
+          break;
+        case ValidationErr.UserNotConnected:
+          break;
+        case SkramErrors.UserAlreadyInARoom:
+          break;
+      }
+    }
+  }
+
+  public joinRoom(req: Request, res: Response) {}
+  public leaveRoom(req: Request, res: Response) {}
+  public destroyRoom(req: Request, res: Response) {}
+
+  //   private initializeRoutes() {
+  // this.router.put(
+  //   '/rooms/create',
+  //   /*Authentication.verifyToken,*/ (req, res) => {
+  //     // let result;
+  //     // if (typeof roomname !== 'string') {
+  //     //   result = ResponseEnum.MalformedRequest;
+  //     // } else {
+  //     //   result = this.createRoom(username, roomname?.trim());
+  //     // }
+  //     // if (result === ResponseEnum.OK) {
+  //     //   res.sendStatus(201);
+  //     // } else {
+  //     //   const resPair = Utils.getResponsePair(result);
+  //     //   res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
+  //     // }
+  //   }
+  // );
+  // this.router.patch('/rooms/connect', Authentication.verifyToken, (req, res) => {
+  //   const username = res.locals.username;
+  //   const roomname = req.body.roomname;
+  //   // const role: UserRole =
+  //   //   req.body.role === UserRole.Estimator ? UserRole.Estimator : req.body.role === UserRole.Spectator ? UserRole.Spectator : UserRole.Unknown;
+  //   // let result;
+  //   // if (typeof roomname !== 'string' || role === UserRole.Unknown) {
+  //   //   result = ResponseEnum.MalformedRequest;
+  //   // } else {
+  //   //   result = this.connectToRoom(username, roomname?.trim(), role);
+  //   // }
+  //   // if (result === ResponseEnum.OK) {
+  //   //   res.sendStatus(200);
+  //   // } else {
+  //   //   const resPair = Utils.getResponsePair(result);
+  //   //   res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
+  //   // }
+  // });
+  // this.router.patch('/rooms/disconnect', Authentication.verifyToken, (req, res) => {
+  //   const username = res.locals.username;
+  //   // const result = this.disconnectFromRoom(username);
+  //   // if (result === ResponseEnum.OK) {
+  //   //   res.sendStatus(200);
+  //   // } else {
+  //   //   const resPair = Utils.getResponsePair(result);
+  //   //   res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
+  //   // }
+  // });
+  // this.router.delete('/rooms/destroy', Authentication.verifyToken, (req, res) => {
+  //   const username = res.locals.username;
+  //   // const result = this.destroyRoomOrderedByUser(username);
+  //   // if (result === ResponseEnum.OK) {
+  //   //   res.sendStatus(200);
+  //   // } else {
+  //   //   const resPair = Utils.getResponsePair(result);
+  //   //   res.status(resPair.code).json(Utils.createMessageJson(resPair.message));
+  //   // }
+  // });
+  //   }
+
+  /**
+   * @throws {@link ValidationErr.UserNotConnected}
+   * @param name
+   */
+  private findUser(name: string): User {
+    const user = [...this.users.values()].find((u) => u.getName() === name);
+    if (user === undefined) throw new Error(ValidationErr.UserNotConnected);
+    return user;
+  }
+
+  private isRoomnameAvailable(roomname: string): boolean {
+    return this.rooms.find((r) => r.getName() === roomname) === undefined;
+  }
+
+  /**
+   * @throws {@link GenericErrors.MalformedRequest}
+   * @throws {@link ValidationErr.RoomnameEmpty}
+   * @throws {@link ValidationErr.RoomnameTooLong}
+   * @param roomname
+   */
+  private validateRoomname(roomname: string): string {
+    if (typeof roomname !== 'string') throw new Error(GenericErrors.MalformedRequest);
+    const trimmed = roomname.trim();
+    if (trimmed.length === 0) throw new Error(ValidationErr.RoomnameEmpty);
+    if (trimmed.length > 20) throw new Error(ValidationErr.RoomnameTooLong);
+    return trimmed;
   }
 
   // private rooms: Room[] = [];
@@ -323,3 +450,5 @@ export class Lobby {
   //   return error;
   // }
 }
+const lobby = new Lobby();
+export default lobby;

@@ -1,6 +1,6 @@
-import { User } from './user';
+import User from './user';
 
-export class Estimate {
+class Estimate {
   private user: User;
   private estimate: number;
 
@@ -17,3 +17,5 @@ export class Estimate {
     return this.estimate;
   }
 }
+
+export default Estimate;

@@ -1,4 +1,9 @@
 export class Utils {
+  /**returns a message in the json form of { message: msg } */
+  static createResponse(msg: string) {
+    return { message: msg };
+  }
+
   static removeFromArray<T>(obj: T, array: T[]) {
     const index = array.indexOf(obj);
     if (index > -1) {

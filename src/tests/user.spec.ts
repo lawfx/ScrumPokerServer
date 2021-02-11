@@ -1,8 +1,8 @@
 import { expect } from 'chai';
-import { Estimate } from '../estimate';
-import { Room } from '../room';
-import { User, UserRole } from '../user';
-import { Err, RoomErr } from './../return';
+import Estimate from '../skram/estimate';
+import Room from '../skram/room';
+import User, { UserRole } from '../skram/user';
+import SkramErr from '../errors/skram-errors';
 
 describe('User', () => {
   describe('is created', () => {
@@ -25,7 +25,7 @@ describe('User', () => {
     it('should throw Error if the user is already in a room', () => {
       const user0 = new User('user0');
       const room0 = user0.createRoom('room0');
-      expect(() => user0.createRoom('room1')).to.throw(Err.UserAlreadyInARoom);
+      expect(() => user0.createRoom('room1')).to.throw(SkramErr.UserAlreadyInARoom);
       countUsersInRoom(room0, 1, 1, 0, 0);
       expect(user0.getCurrentRoom()).to.equal(room0);
     });
@@ -47,11 +47,11 @@ describe('User', () => {
       countUsersInRoom(room0, 4, 1, 2, 1);
     });
 
-    it('should throw AlreadyHasAdmin if an other admin tries to join, and the original admin should remain in the room', () => {
+    it('should throw RoomAlreadyHasAdmin if an other admin tries to join, and the original admin should remain in the room', () => {
       const user0 = new User('user0');
       const room0 = user0.createRoom('room0')!;
       const user1 = new User('user1');
-      expect(() => user1.joinRoom(room0, UserRole.Admin)).to.throw(RoomErr.AlreadyHasAdmin);
+      expect(() => user1.joinRoom(room0, UserRole.Admin)).to.throw(SkramErr.RoomAlreadyHasAdmin);
       countUsersInRoom(room0!, 1, 1, 0, 0);
       expect(room0!.getAdmins()[0]).to.be.equal(user0);
     });
@@ -59,7 +59,7 @@ describe('User', () => {
     it('should throw UserAlreadyInARoom if the user is already in a room', () => {
       const user0 = new User('user0');
       const room0 = user0.createRoom('room0')!;
-      expect(() => user0.joinRoom(room0)).to.throw(Err.UserAlreadyInARoom);
+      expect(() => user0.joinRoom(room0)).to.throw(SkramErr.UserAlreadyInARoom);
       countUsersInRoom(room0, 1, 1, 0, 0);
       expect(user0.getCurrentRoom()).to.be.equal(room0);
     });
@@ -76,7 +76,7 @@ describe('User', () => {
 
     it('should throw UserNotInARoom on leaving room if the user is not in any', () => {
       const user0 = new User('user0');
-      expect(() => user0.leaveRoom()).to.throw(Err.UserNotInARoom);
+      expect(() => user0.leaveRoom()).to.throw(SkramErr.UserNotInARoom);
     });
   });
 
@@ -91,7 +91,7 @@ describe('User', () => {
 
     it('should throw UserNotInARoom if the user tries to create a Task without being in a room', () => {
       const user0 = new User('user0');
-      expect(() => user0.createTask('task0')).to.throw(Err.UserNotInARoom);
+      expect(() => user0.createTask('task0')).to.throw(SkramErr.UserNotInARoom);
     });
 
     it('should throw UserNotAdmin if an other user other than the admin tries to create a Task', () => {
@@ -99,7 +99,7 @@ describe('User', () => {
       const user1 = new User('user1');
       const room0 = user0.createRoom('room0');
       user1.joinRoom(room0);
-      expect(() => user1.createTask('task0')).to.throw(Err.UserNotAdmin);
+      expect(() => user1.createTask('task0')).to.throw(SkramErr.UserNotAdmin);
     });
   });
 
@@ -116,13 +116,13 @@ describe('User', () => {
 
     it('should throw UserNotInARoom if he tries to estimate without being in a room', () => {
       const user0 = new User('user0');
-      expect(() => user0.estimate(1)).to.throw(Err.UserNotInARoom);
+      expect(() => user0.estimate(1)).to.throw(SkramErr.UserNotInARoom);
     });
 
-    it('should throw NoTask if he tries to estimate without an active task', () => {
+    it('should throw NoTaskInRoom if he tries to estimate without an active task', () => {
       const user0 = new User('user0');
       user0.createRoom('room0');
-      expect(() => user0.estimate(1)).to.throw(Err.NoTask);
+      expect(() => user0.estimate(1)).to.throw(SkramErr.NoTaskInRoom);
     });
 
     it('should throw UserHasAlreadyEstimated if he tries to estimate more than once', () => {
@@ -130,7 +130,7 @@ describe('User', () => {
       user0.createRoom('room0');
       user0.createTask('task0');
       user0.estimate(1);
-      expect(() => user0.estimate(1)).to.throw(Err.UserAlreadyEstimated);
+      expect(() => user0.estimate(1)).to.throw(SkramErr.UserAlreadyEstimated);
     });
   });
 

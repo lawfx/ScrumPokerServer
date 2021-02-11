@@ -1,9 +1,9 @@
-import { Room } from './room';
-import { Task } from './task';
-import { Err } from './return';
-import { Estimate } from './estimate';
+import Room from './room';
+import Task from './task';
+import SkramErrors from '../errors/skram-errors';
+import Estimate from './estimate';
 
-export class User {
+class User {
   private name: string;
   private currentRoom?: Room;
   private roomsAsAdmin: Set<Room> = new Set();
@@ -13,10 +13,10 @@ export class User {
   }
 
   /**
-   * @throws {@link Err.UserAlreadyInARoom}
+   * @throws {@link SkramErrors.UserAlreadyInARoom}
    */
   createRoom(name: string): Room {
-    if (this.isInRoom()) throw new Error(Err.UserAlreadyInARoom);
+    if (this.isInRoom()) throw new Error(SkramErrors.UserAlreadyInARoom);
 
     const room = new Room(name, this);
     this.currentRoom = room;
@@ -25,48 +25,47 @@ export class User {
   }
 
   /**
-   * @throws {@link Err.UserAlreadyInARoom}
-   * @throws {@link RoomErr.AlreadyHasAdmin}
+   * @throws {@link SkramErrors.UserAlreadyInARoom}
+   * @throws {@link SkramErrors.RoomAlreadyHasAdmin}
    */
   joinRoom(room: Room, role: UserRole = UserRole.Estimator) {
-    if (this.isInRoom()) throw new Error(Err.UserAlreadyInARoom);
+    if (this.isInRoom()) throw new Error(SkramErrors.UserAlreadyInARoom);
     room.addUser(this, role);
     this.currentRoom = room;
   }
 
   /**
-   * @throws {@link Err.UserNotInARoom}
-   * @throws {@link RoomErr.UserNotFoundInRoom}
+   * @throws {@link SkramErrors.UserNotInARoom}
    */
   leaveRoom() {
-    if (!this.isInRoom()) throw new Error(Err.UserNotInARoom);
+    if (!this.isInRoom()) throw new Error(SkramErrors.UserNotInARoom);
     this.currentRoom!.removeUser(this);
     this.currentRoom = undefined;
   }
 
   /**
-   * @throws {@link Err.UserNotInARoom}
-   * @throws {@link Err.UserNotAdmin}
+   * @throws {@link SkramErrors.UserNotInARoom}
+   * @throws {@link SkramErrors.UserNotAdmin}
    * @param id task ID
    */
   createTask(id: string): Task {
-    if (!this.isInRoom()) throw new Error(Err.UserNotInARoom);
-    if (!this.isAdminInCurrentRoom()) throw new Error(Err.UserNotAdmin);
+    if (!this.isInRoom()) throw new Error(SkramErrors.UserNotInARoom);
+    if (!this.isAdminInCurrentRoom()) throw new Error(SkramErrors.UserNotAdmin);
     const task = new Task(id);
     this.currentRoom!.assignTask(task);
     return task;
   }
 
   /**
-   * @throws {@link Err.UserNotInARoom}
-   * @throws {@link Err.NoTask}
+   * @throws {@link SkramErrors.UserNotInARoom}
+   * @throws {@link SkramErrors.NoTaskInRoom}
    * @param estimate
    */
   estimate(estimate: number): Estimate {
-    if (!this.isInRoom()) throw new Error(Err.UserNotInARoom);
+    if (!this.isInRoom()) throw new Error(SkramErrors.UserNotInARoom);
 
     const task = this.currentRoom!.getTask();
-    if (task === undefined) throw new Error(Err.NoTask);
+    if (task === undefined) throw new Error(SkramErrors.NoTaskInRoom);
 
     try {
       return task.addEstimate(estimate, this);
@@ -106,11 +105,14 @@ export class User {
   }
 }
 
-export enum UserRole {
+enum UserRole {
   Admin,
   Estimator,
   Spectator
 }
+
+export default User;
+export { UserRole };
 
 // import webSocket from 'ws';
 // import { Room } from './room';

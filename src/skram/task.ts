@@ -1,8 +1,8 @@
-import { Estimate } from './estimate';
-import { Err } from './return';
-import { User } from './user';
+import Estimate from './estimate';
+import SkramErrors from '../errors/skram-errors';
+import User from './user';
 
-export class Task {
+class Task {
   private id: string;
   private estimates: Estimate[] = [];
 
@@ -11,12 +11,12 @@ export class Task {
   }
 
   /**
-   * @throws {@link Err.UserAlreadyEstimated}
+   * @throws {@link SkramErrors.UserAlreadyEstimated}
    * @param estimate
    * @param user
    */
   addEstimate(estimate: number, user: User): Estimate {
-    if (this.hasEstimated(user)) throw new Error(Err.UserAlreadyEstimated);
+    if (this.hasEstimated(user)) throw new Error(SkramErrors.UserAlreadyEstimated);
     const est = new Estimate(user, estimate);
     this.estimates.push(est);
     return est;
@@ -46,3 +46,5 @@ export class Task {
     return this.estimates.find((e) => e.getUser().getName() === user.getName()) !== undefined;
   }
 }
+
+export default Task;

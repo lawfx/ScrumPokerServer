@@ -1,8 +1,8 @@
-import { RoomErr, UserErr } from './return';
-import { Task } from './task';
-import { User, UserRole } from './user';
+import SkramErrors from '../errors/skram-errors';
+import Task from './task';
+import User, { UserRole } from './user';
 
-export class Room {
+class Room {
   private name: string;
   private users: Map<User, UserRole> = new Map();
   private task?: Task;
@@ -13,7 +13,7 @@ export class Room {
   }
 
   /**
-   * @throws {@link UserErr.UnknownUserRole}
+   * @throws {@link SkramErrors.UnknownUserRole}
    * @param user
    * @param role
    */
@@ -29,14 +29,12 @@ export class Room {
         this.addSpectator(user);
         break;
       default:
-        throw new Error(UserErr.UnknownUserRole);
+        throw new Error(SkramErrors.UnknownUserRole);
     }
   }
 
-  removeUser(user: User) {
-    if (!this.users.delete(user)) {
-      throw new Error(RoomErr.UserNotFoundInRoom);
-    }
+  removeUser(user: User): boolean {
+    return this.users.delete(user);
   }
 
   assignTask(task: Task): boolean {
@@ -69,12 +67,12 @@ export class Room {
   }
 
   /**
-   * @throws {@link Err.AdminAlreadySet}
+   * @throws {@link SkramErrors.AdminAlreadySet}
    * @param user
    */
   private addAdmin(user: User) {
     if (this.getUsersOfType(UserRole.Admin).length !== 0) {
-      throw new Error(RoomErr.AlreadyHasAdmin);
+      throw new Error(SkramErrors.RoomAlreadyHasAdmin);
     }
     this.users.set(user, UserRole.Admin);
   }
@@ -97,6 +95,8 @@ export class Room {
     return users;
   }
 }
+
+export default Room;
 
 // import { User } from './user';
 // import {

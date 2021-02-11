@@ -1,5 +1,5 @@
-import { ResponseEnum } from './enums';
-import { Room } from './room';
+import { Err } from './return';
+import Room from './skram/room';
 
 /** Messages from server to client */
 export interface LobbyStatusJSON {
@@ -41,19 +41,9 @@ export interface ErrorJSON {
   message: string;
 }
 
-export interface ResponsePair {
-  message: ResponseEnum;
-  code: number;
-}
-
 /** Internals models */
 
 export interface RoomDestructionMessage {
   room: Room;
   reason: string;
-}
-
-export interface Hash {
-  hash: string;
-  salt: string;
 }
